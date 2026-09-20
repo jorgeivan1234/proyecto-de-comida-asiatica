@@ -7,16 +7,14 @@ class Product {
   final String image;
   final int stock;
 
-
-
   Product({
-    required this.id,
+    required this.id, 
     required this.name, 
     required this.description, 
     required this.price, 
     required this.category, 
     required this.image, 
-    required this.stock,
+    required this.stock
   });
 }
 
