@@ -31,7 +31,7 @@ class ProductCard extends StatelessWidget {
             const SizedBox(height: 10),
 
             Text(
-              product.name,
+              product.name, 
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -54,6 +54,12 @@ class ProductCard extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              product.description,
+            style: const TextStyle(
+                fontSize: 18,
               ),
             ),
           ],
