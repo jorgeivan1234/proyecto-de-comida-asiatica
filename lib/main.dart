@@ -1,4 +1,3 @@
-import 'package:ccomcercio_electronico/screens/home_screen.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -11,9 +10,7 @@ class MainApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Comida asiatica',
-      home: HomeScreen(),
+      home: Scaffold(body: Center(child: Text('Hello World!'))),
     );
   }
 }
