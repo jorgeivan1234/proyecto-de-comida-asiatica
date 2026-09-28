@@ -5,9 +5,9 @@ final List<Product> products = [
     id: 1, 
     name: 'ongiri', 
     description: 'bola de Arroz con un toque de sal', 
-    price: 35.0, 
+    price: 30.0, 
     category: 'Almuerzo', 
-    image: 'https://bonviveur.com/es/recetas/onigiri', 
+    image: 'https://e7.pngegg.com/pngimages/769/842/png-clipart-onigiri-california-roll-gimbap-sushi-poke-sushi-food-recipe-thumbnail.png', 
     stock: 20
   ),
 
