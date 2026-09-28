@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../data/mock_products.dart';
 import '../widgets/product_card.dart';
 import '../widgets/navigation_bar.dart'; 
+import '../widgets/hero_banner.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({
@@ -19,11 +20,13 @@ class HomeScreen extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Color(0xFF90CAF9),
               ),
+              
               child: Text(
                 'Menu',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Colors.black,
                   fontSize: 24,
+                  fontWeight: FontWeight.bold
                 ),
               ),
             ),
@@ -46,54 +49,54 @@ class HomeScreen extends StatelessWidget {
       ),
       
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const AppNavigationBar(),
-            
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const AppNavigationBar(),
+
+              const SizedBox(height: 16),
+              
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    const HeroBanner(),
+
+                    const SizedBox(height: 24),
+
                     const Text(
-                      'Bienvenidos',
+                      'Productos',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Productos',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+
                     const SizedBox(height: 12),
-                    Expanded(
-                      child: GridView.builder(
-                        itemCount: products.length,
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 0.75,
-                        ), 
-                        itemBuilder: (context, index){
-                          return ProductCard(
-                            product: products[index]
-                          );
-                        },
-                      ),
+
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: products.length,
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 0.75,
+                      ), 
+                      itemBuilder: (context, index){
+                        return ProductCard(
+                          product: products[index]
+                        );
+                      },
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
