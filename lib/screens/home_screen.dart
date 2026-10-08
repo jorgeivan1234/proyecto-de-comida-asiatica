@@ -3,6 +3,7 @@ import '../data/mock_products.dart';
 import '../widgets/product_card.dart';
 import '../widgets/navigation_bar.dart'; 
 import '../widgets/hero_banner.dart';
+import 'catalog_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({
@@ -42,6 +43,11 @@ class HomeScreen extends StatelessWidget {
               title: const Text('Mis Pedidos'),
               onTap: () {
                 Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => CatalogScreen(),
+                  ),
+                );
               },
             ),
           ],
