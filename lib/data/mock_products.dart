@@ -3,11 +3,11 @@ import '../models/product.dart';
 final List<Product> products = [
   Product(
     id: 1, 
-    name: 'ongiri', 
+    name: 'onigiri', 
     description: 'bola de Arroz con un toque de sal', 
     price: 30.0, 
     category: 'Almuerzo', 
-    image: 'https://e7.pngegg.com/pngimages/769/842/png-clipart-onigiri-california-roll-gimbap-sushi-poke-sushi-food-recipe-thumbnail.png', 
+    image: 'assets/images/onigiri.jpg', 
     stock: 20
   ),
 
@@ -17,7 +17,7 @@ final List<Product> products = [
     description: 'bola de arroz rellena de pollo Marinado en salsa Teriyaki', 
     price: 40.0, 
     category: 'Almuerzo', 
-    image: 'https://www.momentosfriko.com/recetas/onigris-de-pollo', 
+    image: 'assets/images/onigiri_pollo.jpg', 
     stock: 15
   ),
 
@@ -27,7 +27,7 @@ final List<Product> products = [
     description: 'dulce japones elaborado a base de arroz glutinoso de grano corto (conocido como mochigome) o su harina (mochiko), agua y un poco de azúcar.', 
     price: 35.0, 
     category: 'Dulce Tradicional', 
-    image: 'https://www.myamericanshop.es/blogs/blog-de-mi-tienda-americana/mochi-c-est-quoi-et-quel-gout-ca-a', 
+    image: 'assets/images/Mochi.jpg', 
     stock: 25
   ),
   Product(
@@ -36,7 +36,7 @@ final List<Product> products = [
     description: 'bola de Arroz rellena de Camaron Empanizado y con una porcion de aderezo hecho a base de mayonesa y salsa teriyaki', 
     price: 45.0, 
     category: 'Almuerzo', 
-    image: 'https://www.snapcalorie.com/nutrition/es/shrimp_tempura_onigiri_nutrition.html', 
+    image: 'assets/images/ongiri_Tempura.jpg', 
     stock: 20
   ),
   Product(
@@ -45,15 +45,15 @@ final List<Product> products = [
     description: 'pastel con forma de pez relleno de una pasta dulce hecha a base de judias rojas',
     price: 50.0,
     category: 'Dulce Tradicional',
-    image: 'https://www.muyjapones.com/wp-content/uploads/2020/04/Taiyaki-1.jpg',
+    image: 'assets/images/Tayaki_pasta_judias_Rojos.jpg',
     stock: 20
   ),
  Product(id:6, 
-        name: 'Monaka (最中)', 
+        name: 'Monaka', 
         description: 'La monaka consiste en una oblea rellena de pasta de judías dulces. Las obleas vienen en diferentes formas y tamaños, desde sencillas y redondas hasta otras con diseños más elaborados. Una variante moderna muy popular de la monaka se rellena con helado', 
         price: 42, 
         category: 'Dulce Tradicional', 
-        image: 'https://www.japan-guide.com/g9/2312_monaka.jpg', 
+        image: 'assets/images/Monaka.jpg', 
         stock: 30
         )
 ];

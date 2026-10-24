@@ -1,53 +1,38 @@
 import 'package:flutter/material.dart';
 import '../data/mock_products.dart';
 import '../widgets/product_card.dart';
-import '../widgets/navigation_bar.dart'; 
+import '../widgets/app_drawer.dart';
+import '../widgets/navigation_bar.dart';
 import '../widgets/hero_banner.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key
   });
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  String selectedCategory = 'Todos';
+  
+  @override
   Widget build(BuildContext context) {
+    final categories = [
+    'Todos',
+    ...products.map((product) => product.category).toSet(),
+  ];
+
+  final visibleProducts = selectedCategory == 'Todos'
+    ? products
+    : products
+      .where((product) => product.category == selectedCategory)
+      .toList();
+
     return Scaffold(
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(
-                color: Color(0xFF90CAF9),
-              ),
-              
-              child: Text(
-                'Menu',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold
-                ),
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.home),
-              title: const Text('Inicio'),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.shopping_bag),
-              title: const Text('Mis Pedidos'),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
-      ),
-      
+      backgroundColor: Colors.blue[200],
+      drawer: const AppDrawer(),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -74,21 +59,55 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
 
+                    SizedBox(
+                      height: 48,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: categories.length,
+                        separatorBuilder: (context, index) => const SizedBox(width: 8),
+                        itemBuilder: (context, index) {
+                          final category = categories[index];
+                          return ChoiceChip(
+                            label: Text(category),
+                            selected: selectedCategory == category,
+                            onSelected: (_) {
+                              setState(() => selectedCategory = category);
+                            },
+                          );
+                        },
+                      ),
+                    ),
+
                     const SizedBox(height: 12),
+
+                    SizedBox(
+                      height: 340,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        separatorBuilder: (_, __) => const SizedBox(width: 12), 
+                        itemCount: visibleProducts.length,
+                        itemBuilder: (context, index){
+                          return SizedBox(
+                            width: 250,
+                            child: ProductCard(product: visibleProducts[index]),
+                          );
+                        }
+                      ),
+                    ),
 
                     GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      itemCount: products.length,
+                      itemCount: visibleProducts.length,
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
                         crossAxisSpacing: 12,
                         mainAxisSpacing: 12,
-                        childAspectRatio: 0.75,
+                        childAspectRatio: 2,
                       ), 
                       itemBuilder: (context, index){
                         return ProductCard(
-                          product: products[index]
+                          product: visibleProducts[index]
                         );
                       },
                     ),
