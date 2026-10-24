@@ -11,13 +11,11 @@ class HeroBanner extends StatelessWidget {
       height: 350,
       width: double.infinity,
       decoration: BoxDecoration(
-        image: const DecorationImage(
-          image: NetworkImage(
-            'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRPedab1AMTB_r2RhMPLZ6u9gRfB8o75Z9yqDywmo_sAYucvtXDdDN2U_b7&s=10'
-          ),
+        borderRadius: BorderRadius.circular(20),
+        image: DecorationImage(
+          image: AssetImage('assets/icon/icon_home.jpg'),
           fit: BoxFit.cover,
         ),
-        borderRadius: BorderRadius.circular(20)
       ),
       child: Container(
         decoration: BoxDecoration(
@@ -37,9 +35,7 @@ class HeroBanner extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
               SizedBox(height: 10),
-
               Text(
                 'Descubre sabores de Asia',
                 style: TextStyle(
