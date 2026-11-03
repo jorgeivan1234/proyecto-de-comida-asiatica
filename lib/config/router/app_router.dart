@@ -10,6 +10,10 @@ final appRouter = GoRouter(
       path: '/home',
       builder: (context, state) => const HomeScreen(),
     ),
+    GoRoute(
+      path: '/catalog',
+      builder: (context, state) => const CatalogScreen(),
+    ),
     
     GoRoute(
       path: '/details_product',

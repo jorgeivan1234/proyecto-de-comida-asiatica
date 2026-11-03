@@ -168,7 +168,7 @@ class CartScreen extends StatelessWidget {
                                             '\$${item.product.price.toStringAsFixed(2)} c/u',
                                           ),
                                           Text(
-                                            'Subtotal: \$${(item.product.price * item.quantity).toStringAsFixed(2)}',
+                                            'Subtotal: \$${item.subtotal.toStringAsFixed(2)}',
                                           ),
                                         ],
                                       ),
