@@ -1,15 +1,12 @@
-class Card{
+import 'product.dart';
 
-  final String product;
-  final int amount;
-  final double price;
+class CartItem {
+  final Product product;
+  final int quantity;
 
-  Card(
-    
-    {
-    required this.product,
-    required this.amount,
-    required this.price
-  
-  });
+  const CartItem({required this.product, required this.quantity});
+
+  CartItem copyWith({int? quantity}) {
+    return CartItem(product: product, quantity: quantity ?? this.quantity);
+  }
 }

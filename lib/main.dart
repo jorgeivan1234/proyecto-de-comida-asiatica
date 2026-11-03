@@ -1,5 +1,8 @@
-import 'package:ccomcercio_electronico/screens/home_screen.dart';
+import 'package:ccomcercio_electronico/config/router/app_router.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import 'providers/cart_provider.dart';
 
 void main() {
   runApp(const MainApp());
@@ -10,10 +13,13 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Comida asiatica',
-      home: HomeScreen(),
+    return ChangeNotifierProvider(
+      create: (_) => CartProvider(),
+      child: MaterialApp.router(
+        debugShowCheckedModeBanner: false,
+        title: 'Comida asiatica',
+        routerConfig: appRouter,
+      ),
     );
   }
 }
