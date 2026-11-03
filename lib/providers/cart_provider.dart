@@ -18,7 +18,7 @@ class CartProvider extends ChangeNotifier {
 
   double get total => _items.values.fold(
     0,
-    (sum, item) => sum + item.product.price * item.quantity,
+    (sum, item) => sum + item.subtotal,
   );
 
   bool addProduct(Product product) {
