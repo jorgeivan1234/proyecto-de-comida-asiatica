@@ -15,6 +15,9 @@ class CatalogScreen extends StatefulWidget {
 class _CatalogScreenState extends State<CatalogScreen> {
   final _searchController = TextEditingController();
   String _selectedCategory = 'Todos';
+  String _sortBy = 'name';
+  bool _onlyInStock = false;
+
 
   @override
   void dispose() {
@@ -29,17 +32,33 @@ class _CatalogScreenState extends State<CatalogScreen> {
       ...products.map((product) => product.category).toSet(),
     ];
     final query = _searchController.text.trim().toLowerCase();
+
     final filteredProducts = products.where((product) {
       final matchesCategory =
-          _selectedCategory == 'Todos' || product.category == _selectedCategory;
+          _selectedCategory == 'Todos' || 
+          product.category == _selectedCategory;
+
       final matchesQuery =
           query.isEmpty ||
           product.name.toLowerCase().contains(query) ||
           product.description.toLowerCase().contains(query) ||
           product.category.toLowerCase().contains(query);
 
-      return matchesCategory && matchesQuery;
+      final matchesStock = !_onlyInStock || product.stock > 0 ;
+
+      return matchesCategory && matchesQuery && matchesStock;
     }).toList();
+
+    filteredProducts.sort((a, b) {
+      switch (_sortBy) {
+        case 'PriceAsc':
+          return a.price.compareTo(b.price);
+        case 'priceDesc':
+          return b.price.compareTo(a.price);
+        default: 
+          return a.name.compareTo(b.name);
+      }
+    });
 
     return Scaffold(
       backgroundColor: Colors.blue[200],
@@ -100,6 +119,35 @@ class _CatalogScreenState extends State<CatalogScreen> {
                         );
                       },
                     ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      DropdownButton<String>(
+                        value: _sortBy,
+                        items: const [
+                          DropdownMenuItem(value: 'name', child: Text('Nombre')),
+                          DropdownMenuItem(value: 'priceAsc', child: Text('Menor precio.')),
+                          DropdownMenuItem(value: 'priceDesc', child: Text('Mayor precio.'))
+                        ], 
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() => _sortBy = value);
+                          }
+                        },
+                      ),
+                      FilterChip(
+                        label: const Text('Solo disponibles'), 
+                        selected: _onlyInStock,
+                        onSelected: (selected) {
+                          setState(() => _onlyInStock = selected);
+                        },
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   Text(
