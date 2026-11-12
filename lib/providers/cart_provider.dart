@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/cart_item.dart';
 import '../models/order.dart';
@@ -8,7 +9,7 @@ import '../models/product.dart';
 class CartProvider extends ChangeNotifier {
   final Map<int, CartItem> _items = {};
   final List<Order> _orders = [];
-  int _nextOrderId = 1;
+  bool _checkoutInProgress = false;
 
   List<CartItem> get items => List.unmodifiable(_items.values);
   List<Order> get orders => List.unmodifiable(_orders);
@@ -16,10 +17,7 @@ class CartProvider extends ChangeNotifier {
   int get itemCount =>
       _items.values.fold(0, (total, item) => total + item.quantity);
 
-  double get total => _items.values.fold(
-    0,
-    (sum, item) => sum + item.subtotal,
-  );
+  double get total => _items.values.fold(0, (sum, item) => sum + item.subtotal);
 
   bool addProduct(Product product) {
     final currentItem = _items[product.id];
@@ -59,28 +57,108 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Esta compra de demostración registra el pedido localmente; no procesa pagos.
-  Order? checkout() {
+  Future<Order?> checkout() async {
     if (_items.isEmpty) return null;
 
-    final order = Order(
-      id: _nextOrderId++,
-      createdAt: DateTime.now(),
-      items: _items.values
-          .map(
-            (item) => OrderItem(
-              product: item.product,
-              quantity: item.quantity,
-              unitPrice: item.product.price,
-            ),
-          )
-          .toList(),
-    );
+    if (_checkoutInProgress) {
+      throw StateError('Ya se esta procesando este pedido.');
+    }
 
-    // Guardamos el pedido antes de vaciar el carrito para conservar su contenido.
-    _orders.insert(0, order);
-    _items.clear();
+    final client = Supabase.instance.client;
+    if (client.auth.currentUser == null) {
+      throw StateError('Inicia sesion antes de confirmar la compra.');
+    }
+
+    _checkoutInProgress = true;
+    final itemsToOrders = List<CartItem>.of(_items.values);
+
+    try {
+      final response = await client.rpc(
+        'place_order',
+        params: {
+          'p_items': itemsToOrders
+              .map(
+                (item) => {
+                  'product_id': item.product.id,
+                  'quantity': item.quantity,
+                },
+              )
+              .toList(),
+        },
+      );
+
+      if (response is! Map) {
+        throw const FormatException('Respuesta invalida al crear el pedido.');
+      }
+
+      final orderData = Map<String, dynamic>.from(response);
+      final responseItems = orderData['items'];
+      if (responseItems is! List) {
+        throw const FormatException(
+          'La respuesta del pedido no contiene sus productos.',
+        );
+      }
+
+      final orderItems = responseItems.map((rawItem) {
+        final itemData = Map<String, dynamic>.from(rawItem as Map);
+        return OrderItem(
+          productName: itemData['product_name'] as String,
+          quantity: itemData['quantity'] as int,
+          unitPrice: (itemData['unit_price'] as num).toDouble(),
+        );
+      }).toList();
+
+      final order = Order(
+        id: orderData['id'] as int,
+        createdAt: DateTime.parse(orderData['created_at'] as String),
+        status: orderData['status'] as String,
+        items: orderItems,
+      );
+
+      _orders.insert(0, order);
+      _items.clear();
+      notifyListeners();
+      return order;
+    } finally {
+      _checkoutInProgress = false;
+    }
+  }
+
+  Future<void> loadOrders() async {
+    final client = Supabase.instance.client;
+    if (client.auth.currentUser == null) {
+      throw StateError('Inicia sesion para consultar tus pedidos.');
+    }
+
+    final rows = await client
+        .from('orders')
+        .select(
+          'id, created_at, status, order_items'
+          '(product_name, quantity, unit_price)',
+        )
+        .order('created_at', ascending: false);
+
+    final loadedOrders = rows.map((row) {
+      final orderItems = (row['order_items'] as List).map((rawItem) {
+        final item = Map<String, dynamic>.from(rawItem as Map);
+        return OrderItem(
+          productName: item['product_name'] as String,
+          quantity: item['quantity'] as int,
+          unitPrice: (item['unit_price'] as num).toDouble(),
+        );
+      }).toList();
+
+      return Order(
+        id: row['id'] as int,
+        createdAt: DateTime.parse(row['created_at'] as String),
+        items: orderItems,
+        status: row['status'] as String,
+      );
+    }).toList();
+
+    _orders
+      ..clear()
+      ..addAll(loadedOrders);
     notifyListeners();
-    return order;
   }
 }

@@ -1,10 +1,11 @@
+import 'package:ccomcercio_electronico/screens/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../screens/screens.dart';
 import '../../models/product.dart';
 
 final appRouter = GoRouter(
-  initialLocation: '/home',
+  initialLocation: '/login',
   routes: [
     GoRoute(
       path: '/home',
@@ -41,5 +42,15 @@ final appRouter = GoRouter(
       path: '/cart',
       builder: (context, state) => const CartScreen(),
     ),
+    GoRoute(
+      path: '/login',
+      builder: (context, state) => const LoginScreen(),
+    ),
+
+    GoRoute(
+      path: '/register',
+      builder: (context, state) => const RegisterScreen(),
+    ),
+
   ]
 );

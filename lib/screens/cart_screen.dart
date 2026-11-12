@@ -1,16 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../providers/cart_provider.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/navigation_bar.dart';
 
-class CartScreen extends StatelessWidget {
+class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
+
+  @override
+  State<CartScreen> createState() => _CartScreenState();
+}
+
+class _CartScreenState extends State<CartScreen> {
+  bool _isSubmitting = false;
 
   // Pide confirmación antes de convertir el contenido del carrito en un pedido.
   Future<void> _confirmPurchase(BuildContext context, CartProvider cart) async {
+    if (_isSubmitting) return;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -34,29 +44,53 @@ class CartScreen extends StatelessWidget {
 
     if (confirmed != true || !context.mounted) return;
 
-    final order = cart.checkout();
-    if (order == null || !context.mounted) return;
+    setState(() => _isSubmitting = true);
 
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('¡Pedido registrado!'),
-        content: Text(
-          'Tu pedido #${order.id} se registró correctamente. '
-          'Total: \$${order.total.toStringAsFixed(2)}. '
-          'Esta demostración no realiza ningún cobro.',
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              context.go('/orders');
-            },
-            child: const Text('Ver mis pedidos'),
+    try {
+      final order = await cart.checkout();
+      if (order == null || !context.mounted) return;
+
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('¡Pedido registrado!'),
+          content: Text(
+            'El pedido #${order.id} se guardó y se descontaron las '
+            'existencias. Total: \$${order.total.toStringAsFixed(2)}. '
+            'El pago todavía no está integrado.',
           ),
-        ],
-      ),
-    );
+          actions: [
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                context.go('/orders');
+              },
+              child: const Text('Ver mis pedidos'),
+            ),
+          ],
+        ),
+      );
+    } on PostgrestException catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo registrar la compra: ${error.message}'),
+        ),
+      );
+    } on StateError catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message)));
+    } on FormatException catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Respuesta inválida del servidor: ${error.message}'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -175,9 +209,11 @@ class CartScreen extends StatelessWidget {
                                     ),
                                     IconButton(
                                       tooltip: 'Quitar uno',
-                                      onPressed: () => cart.decreaseQuantity(
-                                        item.product.id,
-                                      ),
+                                      onPressed: _isSubmitting
+                                          ? null
+                                          : () => cart.decreaseQuantity(
+                                              item.product.id,
+                                            ),
                                       icon: const Icon(
                                         Icons.remove_circle_outline,
                                       ),
@@ -185,23 +221,25 @@ class CartScreen extends StatelessWidget {
                                     Text('${item.quantity}'),
                                     IconButton(
                                       tooltip: 'Agregar uno',
-                                      onPressed: () {
-                                        final added = cart.addProduct(
-                                          item.product,
-                                        );
-                                        if (!added) {
-                                          ScaffoldMessenger.of(context)
-                                            ..hideCurrentSnackBar()
-                                            ..showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  'No hay más existencias de '
-                                                  '${item.product.name}',
-                                                ),
-                                              ),
-                                            );
-                                        }
-                                      },
+                                      onPressed: _isSubmitting
+                                          ? null
+                                          : () {
+                                              final added = cart.addProduct(
+                                                item.product,
+                                              );
+                                              if (!added) {
+                                                ScaffoldMessenger.of(context)
+                                                  ..hideCurrentSnackBar()
+                                                  ..showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        'No hay más existencias de '
+                                                        '${item.product.name}',
+                                                      ),
+                                                    ),
+                                                  );
+                                              }
+                                            },
                                       icon: const Icon(
                                         Icons.add_circle_outline,
                                       ),
@@ -233,14 +271,29 @@ class CartScreen extends StatelessWidget {
                                     MainAxisAlignment.spaceBetween,
                                 children: [
                                   TextButton(
-                                    onPressed: cart.clear,
+                                    onPressed: _isSubmitting
+                                        ? null
+                                        : cart.clear,
                                     child: const Text('Vaciar carrito'),
                                   ),
                                   FilledButton.icon(
-                                    onPressed: () =>
-                                        _confirmPurchase(context, cart),
-                                    icon: const Icon(Icons.payment),
-                                    label: const Text('Comprar'),
+                                    onPressed: _isSubmitting
+                                        ? null
+                                        : () => _confirmPurchase(context, cart),
+                                    icon: _isSubmitting
+                                        ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : const Icon(Icons.shopping_bag),
+                                    label: Text(
+                                      _isSubmitting
+                                          ? 'Registrando...'
+                                          : 'Confirmar pedido',
+                                    ),
                                   ),
                                 ],
                               ),

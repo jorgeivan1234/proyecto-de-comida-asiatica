@@ -1,12 +1,10 @@
-import 'product.dart';
-
 class OrderItem {
-  final Product product;
+  final String productName;
   final int quantity;
   final double unitPrice;
 
   const OrderItem({
-    required this.product,
+    required this.productName,
     required this.quantity,
     required this.unitPrice,
   });
