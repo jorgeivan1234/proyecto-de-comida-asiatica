@@ -5,12 +5,24 @@ class Order {
   final DateTime createdAt;
   final List<OrderItem> items;
   final String status;
+  final String paymentStatus;
+  final DateTime? expiresAt;
+  final DateTime? reservationExpiresAt;
+  final String? checkoutUrl;
+  final String? paymentTicketUrl;
+  final String? paymentMethod;
 
   Order({
     required this.id,
     required this.createdAt,
     required List<OrderItem> items,
     required this.status,
+    required this.paymentStatus,
+    this.expiresAt,
+    this.reservationExpiresAt,
+    this.checkoutUrl,
+    this.paymentTicketUrl,
+    this.paymentMethod,
   }) : items = List.unmodifiable(items);
 
   // El total se calcula con los precios guardados al confirmar la compra.

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/cart_provider.dart';
 import '../widgets/app_drawer.dart';
@@ -50,26 +51,28 @@ class _CartScreenState extends State<CartScreen> {
       final order = await cart.checkout();
       if (order == null || !context.mounted) return;
 
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('¡Pedido registrado!'),
-          content: Text(
-            'El pedido #${order.id} se guardó y se descontaron las '
-            'existencias. Total: \$${order.total.toStringAsFixed(2)}. '
-            'El pago todavía no está integrado.',
-          ),
-          actions: [
-            FilledButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                context.go('/orders');
-              },
-              child: const Text('Ver mis pedidos'),
-            ),
-          ],
-        ),
+      final checkoutUrl = await cart.createPaymentCheckout(order.id);
+      final opened = await launchUrl(
+        checkoutUrl,
+        mode: LaunchMode.externalApplication,
       );
+      if (!opened) {
+        throw StateError(
+          'No se pudo abrir el checkout. Puedes reintentarlo desde Mis pedidos.',
+        );
+      }
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Se abrió el checkout seguro. El stock físico no se descontó; '
+              'el pago se confirmará cuando Mercado Pago notifique el resultado.',
+            ),
+          ),
+        );
     } on PostgrestException catch (error) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -87,6 +90,20 @@ class _CartScreenState extends State<CartScreen> {
         SnackBar(
           content: Text('Respuesta inválida del servidor: ${error.message}'),
         ),
+      );
+    } on FunctionException catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'No se pudo abrir el pago: ${error.details ?? error.reasonPhrase ?? error.status}',
+          ),
+        ),
+      );
+    } on Exception catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo abrir el pago: $error')),
       );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
