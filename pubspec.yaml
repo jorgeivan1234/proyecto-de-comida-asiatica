@@ -13,6 +13,7 @@ dependencies:
   provider: ^6.1.5+1
   supabase: ^2.16.5
   supabase_flutter: ^2.18.3
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_launcher_icons: ^0.14.4

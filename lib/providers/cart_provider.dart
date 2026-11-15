@@ -112,7 +112,12 @@ class CartProvider extends ChangeNotifier {
         id: orderData['id'] as int,
         createdAt: DateTime.parse(orderData['created_at'] as String),
         status: orderData['status'] as String,
+        paymentStatus: orderData['payment_status'] as String,
         items: orderItems,
+        expiresAt: DateTime.parse(orderData['expires_at'] as String),
+        reservationExpiresAt: DateTime.parse(
+          orderData['reservation_expires_at'] as String,
+        ),
       );
 
       _orders.insert(0, order);
@@ -124,21 +129,56 @@ class CartProvider extends ChangeNotifier {
     }
   }
 
+  Future<Uri> createPaymentCheckout(int orderId) async {
+    final response = await Supabase.instance.client.functions.invoke(
+      'create-payment-checkout',
+      body: {'order_id': orderId},
+    );
+
+    if (response.data is! Map) {
+      throw const FormatException('Respuesta inválida al abrir el pago.');
+    }
+
+    final responseData = Map<String, dynamic>.from(response.data as Map);
+    final checkoutUrl = responseData['checkout_url'];
+    if (checkoutUrl is! String) {
+      throw const FormatException('El servidor no devolvió el enlace de pago.');
+    }
+
+    final uri = Uri.tryParse(checkoutUrl);
+    const allowedHosts = ['mercadopago.com', 'mercadopago.com.mx'];
+    if (uri == null ||
+        uri.scheme != 'https' ||
+        !allowedHosts.any(
+          (host) => uri.host == host || uri.host.endsWith('.$host'),
+        )) {
+      throw const FormatException('El enlace de pago no es válido.');
+    }
+
+    return uri;
+  }
+
   Future<void> loadOrders() async {
     final client = Supabase.instance.client;
     if (client.auth.currentUser == null) {
       throw StateError('Inicia sesion para consultar tus pedidos.');
     }
 
+    await client.rpc('expire_my_pending_orders');
+
     final rows = await client
         .from('orders')
         .select(
-          'id, created_at, status, order_items'
-          '(product_name, quantity, unit_price)',
+          'id, created_at, status, payment_status, expires_at, '
+          'reservation_expires_at, checkout_url, '
+          'payment_ticket_url, payment_method, '
+          'order_items(product_name, quantity, unit_price)',
         )
         .order('created_at', ascending: false);
 
     final loadedOrders = rows.map((row) {
+      final expiresAt = row['expires_at'] as String?;
+      final reservationExpiresAt = row['reservation_expires_at'] as String?;
       final orderItems = (row['order_items'] as List).map((rawItem) {
         final item = Map<String, dynamic>.from(rawItem as Map);
         return OrderItem(
@@ -153,6 +193,14 @@ class CartProvider extends ChangeNotifier {
         createdAt: DateTime.parse(row['created_at'] as String),
         items: orderItems,
         status: row['status'] as String,
+        paymentStatus: row['payment_status'] as String,
+        expiresAt: expiresAt == null ? null : DateTime.parse(expiresAt),
+        reservationExpiresAt: reservationExpiresAt == null
+            ? null
+            : DateTime.parse(reservationExpiresAt),
+        checkoutUrl: row['checkout_url'] as String?,
+        paymentTicketUrl: row['payment_ticket_url'] as String?,
+        paymentMethod: row['payment_method'] as String?,
       );
     }).toList();
 

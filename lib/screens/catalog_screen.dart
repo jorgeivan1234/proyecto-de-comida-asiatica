@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../data/mock_products.dart';
 import '../models/product.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/navigation_bar.dart';
@@ -22,34 +21,33 @@ class _CatalogScreenState extends State<CatalogScreen> {
 
   late Future<List<Product>> _productsFuture;
 
-    @override
+  @override
   void initState() {
     super.initState();
     _productsFuture = _loadProducts();
   }
 
-
   Future<List<Product>> _loadProducts() async {
     final rows = await Supabase.instance.client
-      .from('products')
-      .select('id, name, description, price, category, image, stock')
-      .order('name');
+        .from('products_available')
+        .select('id, name, description, price, category, image, stock')
+        .order('name');
 
-    return rows.map<Product>((row){
+    return rows.map<Product>((row) {
       return Product(
-        id: row['id'] as int, 
-        name: row['name'] as String, 
-        description: row['description'] as String,  
+        id: row['id'] as int,
+        name: row['name'] as String,
+        description: row['description'] as String,
         price: (row['price'] as num).toDouble(),
-        category: row['category'] as String, 
-        image: row['image'] as String, 
+        category: row['category'] as String,
+        image: row['image'] as String,
         stock: row['stock'] as int,
       );
     }).toList();
   }
 
-  void _retryLoadingProducts(){
-    setState((){
+  void _retryLoadingProducts() {
+    setState(() {
       _productsFuture = _loadProducts();
     });
   }
@@ -62,7 +60,6 @@ class _CatalogScreenState extends State<CatalogScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     final query = _searchController.text.trim().toLowerCase();
 
     return Scaffold(
@@ -74,12 +71,10 @@ class _CatalogScreenState extends State<CatalogScreen> {
             const AppNavigationBar(),
             Expanded(
               child: FutureBuilder(
-                future: _productsFuture, 
+                future: _productsFuture,
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting){
-                    return const Center(
-                      child: CircularProgressIndicator(),
-                    );
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
                   }
 
                   if (snapshot.hasError) {
@@ -134,9 +129,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                         product.description.toLowerCase().contains(query) ||
                         product.category.toLowerCase().contains(query);
 
-                    final matchesStock =
-                        !_onlyInStock || product.stock > 0;
-
+                    final matchesStock = !_onlyInStock || product.stock > 0;
 
                     return matchesCategory && matchesQuery && matchesStock;
                   }).toList();
@@ -161,8 +154,8 @@ class _CatalogScreenState extends State<CatalogScreen> {
                             const Text(
                               'Catálogo de productos',
                               style: TextStyle(
-                                fontSize: 24, 
-                                fontWeight: FontWeight.bold
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -196,7 +189,8 @@ class _CatalogScreenState extends State<CatalogScreen> {
                               child: ListView.separated(
                                 scrollDirection: Axis.horizontal,
                                 itemCount: categories.length,
-                                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(width: 8),
                                 itemBuilder: (context, index) {
                                   final category = categories[index];
 
@@ -204,7 +198,9 @@ class _CatalogScreenState extends State<CatalogScreen> {
                                     label: Text(category),
                                     selected: _selectedCategory == category,
                                     onSelected: (_) {
-                                      setState(() => _selectedCategory = category);
+                                      setState(
+                                        () => _selectedCategory = category,
+                                      );
                                     },
                                   );
                                 },
@@ -212,7 +208,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                             ),
 
                             const SizedBox(height: 8),
-                      
+
                             Wrap(
                               spacing: 12,
                               runSpacing: 8,
@@ -221,10 +217,19 @@ class _CatalogScreenState extends State<CatalogScreen> {
                                 DropdownButton<String>(
                                   value: _sortBy,
                                   items: const [
-                                    DropdownMenuItem(value: 'name', child: Text('Nombre')),
-                                    DropdownMenuItem(value: 'priceAsc', child: Text('Menor precio.')),
-                                    DropdownMenuItem(value: 'priceDesc', child: Text('Mayor precio.'))
-                                  ], 
+                                    DropdownMenuItem(
+                                      value: 'name',
+                                      child: Text('Nombre'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'priceAsc',
+                                      child: Text('Menor precio.'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'priceDesc',
+                                      child: Text('Mayor precio.'),
+                                    ),
+                                  ],
                                   onChanged: (value) {
                                     if (value != null) {
                                       setState(() => _sortBy = value);
@@ -232,7 +237,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                                   },
                                 ),
                                 FilterChip(
-                                  label: const Text('Solo disponibles'), 
+                                  label: const Text('Solo disponibles'),
                                   selected: _onlyInStock,
                                   onSelected: (selected) {
                                     setState(() => _onlyInStock = selected);
@@ -273,11 +278,11 @@ class _CatalogScreenState extends State<CatalogScreen> {
                                     ),
                                 itemBuilder: (context, index) {
                                   return ProductCard(
-                                    product: filteredProducts[index]
+                                    product: filteredProducts[index],
                                   );
                                 },
                               ),
-                      )
+                      ),
                     ],
                   );
                 },
