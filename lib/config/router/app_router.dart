@@ -9,7 +9,12 @@ import '../../widgets/role_gate.dart';
 final appRouter = GoRouter(
   initialLocation: '/login',
   routes: [
-    GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
+    
+    GoRoute(
+      path: '/home', 
+      builder: (context, state) => const HomeScreen()
+    ),
+
     GoRoute(
       path: '/catalog',
       builder: (context, state) => const CatalogScreen(),
@@ -28,15 +33,38 @@ final appRouter = GoRouter(
         return ProductDetailsScreen(product: extra);
       },
     ),
-    GoRoute(path: '/orders', builder: (context, state) => const OrdersScreen()),
+
+    GoRoute(
+      path: '/orders', 
+      builder: (context, state) => const OrdersScreen()
+    ),
+    
     GoRoute(
       path: '/admin',
       builder: (context, state) =>
-          const RoleGate(requiredRole: 'admin', child: AdminScreen()),
+          const RoleGate(
+            requiredRole: 'admin', 
+            child: AdminScreen()
+          ),
     ),
 
-    GoRoute(path: '/cart', builder: (context, state) => const CartScreen()),
-    GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+    GoRoute(
+      path: '/admin/orders',
+      builder: (context, state) => const RoleGate(
+        requiredRole: 'admin',
+        child: AdminOrdersScreen(),
+      ),
+    ),
+
+    GoRoute(
+      path: '/cart', 
+      builder: (context, state) => const CartScreen()
+    ),
+
+    GoRoute(
+      path: '/login', 
+      builder: (context, state) => const LoginScreen()
+    ),
 
     GoRoute(
       path: '/register',

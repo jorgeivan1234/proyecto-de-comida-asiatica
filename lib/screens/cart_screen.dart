@@ -17,10 +17,26 @@ class CartScreen extends StatefulWidget {
 
 class _CartScreenState extends State<CartScreen> {
   bool _isSubmitting = false;
+  String _fulfillmentMethod = 'pickup';
+  final _deliveryAddressController = TextEditingController();
+  
+  @override
+  void dispose (){
+    _deliveryAddressController.dispose();
+    super.dispose();
+  }
 
   // Pide confirmación antes de convertir el contenido del carrito en un pedido.
   Future<void> _confirmPurchase(BuildContext context, CartProvider cart) async {
     if (_isSubmitting) return;
+
+    if (_fulfillmentMethod == 'delivery' &&
+        _deliveryAddressController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Escribe la direccion de entrega.')),
+          );
+          return;
+        }
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -50,6 +66,17 @@ class _CartScreenState extends State<CartScreen> {
     try {
       final order = await cart.checkout();
       if (order == null || !context.mounted) return;
+
+      await Supabase.instance.client.rpc(
+        'set_my_pending_order_fulfillment',
+        params: {
+          'p_order_id': order.id,
+          'p_method': _fulfillmentMethod,
+          'p_delivery address': _fulfillmentMethod == 'delivery'
+              ? _deliveryAddressController.text.trim()
+              : null,
+        },
+      );
 
       final checkoutUrl = await cart.createPaymentCheckout(order.id);
       final opened = await launchUrl(
@@ -109,6 +136,7 @@ class _CartScreenState extends State<CartScreen> {
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -275,6 +303,52 @@ class _CartScreenState extends State<CartScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
+                              const Align(
+                                alignment: Alignment.center,
+                                child: Text(
+                                  '¿Como quieres recibir tu pedido?',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              RadioListTile<String>(
+                                title: const Text('Recoger en el local'),
+                                value: 'pickup',
+                                groupValue: _fulfillmentMethod,
+                                onChanged: _isSubmitting
+                                    ? null
+                                    : (String? value) {
+                                        if (value != null) {
+                                          setState(
+                                            () => _fulfillmentMethod = value,
+                                          );
+                                        }
+                                      },
+                              ),
+                              RadioListTile<String>(
+                                title: const Text('Entregar a domicilio'),
+                                value: 'delivery',
+                                groupValue: _fulfillmentMethod,
+                                onChanged: _isSubmitting
+                                    ? null
+                                    : (String? value) {
+                                        if (value != null) {
+                                          setState(
+                                            () => _fulfillmentMethod = value,
+                                          );
+                                        }
+                                      },
+                              ),
+
+                              if (_fulfillmentMethod == 'delivery')
+                                TextField(
+                                  controller: _deliveryAddressController,
+                                  maxLines: 3,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Direccion de entrega',
+                                    hintText: 'Calle, numero, colonia, codigo postal y referencias',
+                                  border: OutlineInputBorder(),
+                                  ),
+                                ),
                               Text(
                                 'Total: \$${cart.total.toStringAsFixed(2)}',
                                 style: const TextStyle(
