@@ -38,7 +38,7 @@ final appRouter = GoRouter(
       path: '/orders', 
       builder: (context, state) => const OrdersScreen()
     ),
-    
+
     GoRoute(
       path: '/admin',
       builder: (context, state) =>
@@ -59,6 +59,11 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/cart', 
       builder: (context, state) => const CartScreen()
+    ),
+
+    GoRoute(
+      path: '/checkout',
+      builder: (context, state) => const CheckoutScreen(),
     ),
 
     GoRoute(

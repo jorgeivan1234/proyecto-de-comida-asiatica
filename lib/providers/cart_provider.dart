@@ -57,7 +57,11 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<Order?> checkout() async {
+  Future<Order?> checkout({
+    required String fulfillmentMethod,
+    required String? deliveryAddress,
+    required String paymentMethod,
+  }) async {
     if (_items.isEmpty) return null;
 
     if (_checkoutInProgress) {
@@ -74,7 +78,7 @@ class CartProvider extends ChangeNotifier {
 
     try {
       final response = await client.rpc(
-        'place_order',
+        'place_order_with_options',
         params: {
           'p_items': itemsToOrders
               .map(
@@ -84,6 +88,9 @@ class CartProvider extends ChangeNotifier {
                 },
               )
               .toList(),
+          'p_fulfillment_method': fulfillmentMethod,
+          'p_delivery_address': deliveryAddress,
+          'p_payment_method': paymentMethod,
         },
       );
 
@@ -171,7 +178,8 @@ class CartProvider extends ChangeNotifier {
         .select(
           'id, created_at, status, payment_status, expires_at, '
           'reservation_expires_at, checkout_url, '
-          'payment_ticket_url, payment_method, '
+          'payment_ticket_url, payment_method, fulfillment_method, '
+          'delivery_address, fulfillment_status, '
           'order_items(product_name, quantity, unit_price)',
         )
         .order('created_at', ascending: false);
@@ -201,6 +209,9 @@ class CartProvider extends ChangeNotifier {
         checkoutUrl: row['checkout_url'] as String?,
         paymentTicketUrl: row['payment_ticket_url'] as String?,
         paymentMethod: row['payment_method'] as String?,
+        fulfillmentMethod: row['fulfillment_method'] as String?,
+        deliveryAddress: row['delivery_address'] as String?,
+        fulfillmentStatus: row['fulfillment_status'] as String?,
       );
     }).toList();
 

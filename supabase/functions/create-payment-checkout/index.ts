@@ -74,7 +74,7 @@ Deno.serve(async (request) => {
   const { data: order, error: orderError } = await serviceClient
     .from("orders")
     .select(
-      "id, user_id, status, total, expires_at, provider_preference_id, checkout_url, order_items(product_name, quantity, unit_price)",
+      "id, user_id, status, payment_provider, total, expires_at, provider_preference_id, checkout_url, order_items(product_name, quantity, unit_price)",
     )
     .eq("id", orderId)
     .eq("user_id", user.id)
@@ -89,6 +89,9 @@ Deno.serve(async (request) => {
   }
   if (order.status !== "pending_payment") {
     return jsonResponse({ error: "This order is not awaiting payment." }, 409);
+  }
+  if (order.payment_provider !== "mercadopago") {
+    return jsonResponse({ error: "This order is not set up for online payment." }, 409);
   }
   if (new Date(order.expires_at).getTime() <= Date.now()) {
     return jsonResponse({ error: "The order reservation has expired." }, 409);
@@ -114,6 +117,14 @@ Deno.serve(async (request) => {
       currency_id: "MXN",
     })),
     payer: user.email ? { email: user.email } : undefined,
+    payment_methods: {
+      excluded_payment_types: [
+        { id: "ticket" },
+        { id: "bank_transfer" },
+        { id: "atm" },
+        { id: "account_money" },
+      ],
+    },
     external_reference: String(order.id),
     notification_url: notificationUrl,
     expires: true,
