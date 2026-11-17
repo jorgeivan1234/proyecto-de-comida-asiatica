@@ -16,11 +16,13 @@ class AdminScreen extends StatefulWidget {
 
 class _AdminScreenState extends State<AdminScreen> {
   late Future<List<Product>> _productsFuture;
+  late Future <Map<String, num>> _metricsFuture;
 
   @override
   void initState() {
     super.initState();
     _productsFuture = _loadProducts();
+    _metricsFuture = _loadMetrics();
   }
 
   Future<List<Product>> _loadProducts() async {
@@ -56,6 +58,105 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
+  Future<Map<String, num>> _loadMetrics() async {
+    final response = await Supabase.instance.client.rpc(
+      'get_admin_sales_metrics',
+    );
+
+    if (response is! Map) {
+      throw const FormatException('Respuesta invalida al cargar metricas.');
+    } 
+
+    final data = Map<String, dynamic>.from(response);
+    final totalSales = data['total_sales'];
+    final averageTicket = data['average_ticket'];
+
+    if (totalSales is! num || averageTicket is! num) {
+      throw const FormatException('Faltan datos de venta en la respuesta.');
+    }
+
+    return {
+      'total_sales': totalSales,
+      'average_ticket': averageTicket,
+    };
+  }
+
+  Widget _buildMetrics() {
+    return FutureBuilder<Map<String, num>>(
+      future: _metricsFuture, 
+      builder: (context, snapshot) {
+        if(snapshot.connectionState == ConnectionState.waiting){
+          return const Padding(
+            padding: EdgeInsets.all(16),
+            child: LinearProgressIndicator(),
+          );
+        }
+      
+        if (snapshot.hasError) {
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'No se pudieron cargar las metricas: ${snapshot.error}',
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    setState((){
+                      _metricsFuture = _loadMetrics();
+                    });
+                  },
+                  child: const Text('Reintentar'),
+                )
+              ],
+            ),
+          );
+        }
+
+        final metrics = snapshot.data!;
+        final totalSales = metrics['total_sales']!.toDouble();
+        final averageTicket = metrics['average_ticket']!.toDouble();
+
+        final cards = [
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.attach_money),
+              title: const Text('Ventas acumuladas'),
+              subtitle: Text('\$${totalSales.toStringAsFixed(2)} MXN'),
+            ),
+          ),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.receipt_long),
+              title: const Text('Ticket_promedio'),
+              subtitle: Text('\$${averageTicket.toStringAsFixed(2)} MXN'),
+            ),
+          ),
+        ];
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 520) {
+                return Column(children: cards);
+              }
+              return Row(
+                children: [
+                  Expanded(child: cards[0]),
+                  const SizedBox(width: 12),
+                  Expanded(child: cards[1]),
+                ],
+              );
+            },
+          ),
+        );
+      }
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -84,6 +185,9 @@ class _AdminScreenState extends State<AdminScreen> {
                 ),
               ),
             ),
+
+            _buildMetrics(),
+            
             Expanded(
               child: FutureBuilder<List<Product>>(
                 future: _productsFuture,
