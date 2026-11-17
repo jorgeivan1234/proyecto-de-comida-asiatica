@@ -11,6 +11,9 @@ class Order {
   final String? checkoutUrl;
   final String? paymentTicketUrl;
   final String? paymentMethod;
+  final String? fulfillmentMethod;
+  final String? deliveryAddress;
+  final String? fulfillmentStatus;
 
   Order({
     required this.id,
@@ -23,6 +26,9 @@ class Order {
     this.checkoutUrl,
     this.paymentTicketUrl,
     this.paymentMethod,
+    this.fulfillmentMethod,
+    this.deliveryAddress,
+    this.fulfillmentStatus,
   }) : items = List.unmodifiable(items);
 
   // El total se calcula con los precios guardados al confirmar la compra.

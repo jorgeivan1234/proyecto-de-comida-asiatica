@@ -18,9 +18,10 @@ un pago aprobado.
 
 ## Configurar Mercado Pago
 
-La app usa Checkout Pro para ofrecer los medios disponibles en la cuenta de
-Mercado Pago, incluidos tarjeta y OXXO en México. El cliente paga en la página
-segura del proveedor; la app nunca recibe ni almacena datos de tarjeta.
+La app usa Checkout Pro para cobrar con tarjeta de crédito o débito. Se excluyen
+los tipos de pago en efectivo, transferencia y saldo de Mercado Pago. El cliente
+paga en la página segura del proveedor; la app nunca recibe ni almacena datos
+de tarjeta.
 
 1. Crea una aplicación en Mercado Pago y configura notificaciones del evento
    `payment` a la URL de la función `mercadopago-webhook`.
@@ -30,8 +31,8 @@ segura del proveedor; la app nunca recibe ni almacena datos de tarjeta.
    `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET` y `MP_ENVIRONMENT`.
 4. Empieza con credenciales de prueba y `MP_ENVIRONMENT=test`. La función solo
    usa el enlace Sandbox si el token empieza con `TEST-`.
-5. Cambia a producción únicamente después de probar los pagos y OXXO, y después
-   de habilitar la cuenta de vendedor. En producción, la función exige
+5. Cambia a producción únicamente después de probar los pagos y de habilitar la
+   cuenta de vendedor. En producción, la función exige
    `MP_ENVIRONMENT=production` y un token `APP_USR-`.
 
 Nunca agregues el access token ni el secreto del webhook a Flutter, al SQL, al
@@ -73,7 +74,21 @@ un rol, el usuario debe cerrar sesión e iniciarla de nuevo para que la app
 actualice el permiso mostrado.
 
 La ruta `/admin` verifica el rol guardado en la base de datos y el enlace de
-administración solo aparece para cuentas con rol `admin`. El panel todavía no
-incluye gestión de productos, pedidos ni métricas; las futuras operaciones
-administrativas también deben protegerse en Supabase, no solo ocultarse en la
-interfaz.
+administración solo aparece para cuentas con rol `admin`. El panel incluye
+gestión de productos, métricas y una sección de pedidos en `/admin/orders`.
+Cada operación administrativa debe protegerse en Supabase, no solo ocultarse
+en la interfaz.
+
+## Opciones de pago y entrega
+
+Ejecuta una sola vez
+`supabase/migrations/20261115000000_cash_and_checkout_options.sql` en Supabase
+SQL Editor después de las migraciones de pedidos y roles. La entrega a domicilio
+no tiene costo por ahora.
+
+En la revisión de compra, el cliente puede elegir recoger en el local o recibir
+a domicilio. También elige pagar en efectivo (en caja al recoger o al
+repartidor) o pagar en línea con Mercado Pago. El efectivo queda pendiente hasta
+que un administrador confirme en el panel que recibió el dinero. Esa
+confirmación descuenta el stock reservado; los pagos en línea siguen
+confirmándose por el webhook de Mercado Pago.

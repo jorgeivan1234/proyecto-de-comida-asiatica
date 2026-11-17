@@ -179,7 +179,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'Pedido: ${_statusLabel(order.status, order.expiresAt)}',
+                                          'Pedido: ${_statusLabel(order.status, order.expiresAt, isCashPayment: order.paymentMethod == 'cash')}',
                                         ),
                                         Text(
                                           'Pago: ${_paymentStatusLabel(order.paymentStatus)}',
@@ -187,13 +187,29 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                         if (order.paymentMethod != null)
                                           Text(
                                             'Método: '
-                                            '${_paymentMethodLabel(order.paymentMethod!)}',
+                                            '${_paymentMethodLabel(order.paymentMethod!, order.fulfillmentMethod)}',
+                                          ),
+                                        if (order.fulfillmentMethod != null)
+                                          Text(
+                                            'Entrega: '
+                                            '${_fulfillmentMethodLabel(order.fulfillmentMethod!)}',
+                                          ),
+                                        if (order.fulfillmentMethod ==
+                                                'delivery' &&
+                                            order.deliveryAddress != null)
+                                          Text(
+                                            'Dirección: ${order.deliveryAddress}',
+                                          ),
+                                        if (order.fulfillmentStatus != null)
+                                          Text(
+                                            'Estado de entrega: '
+                                            '${_fulfillmentStatusLabel(order.fulfillmentStatus!)}',
                                           ),
                                         if (order.status == 'paid')
                                           Text(
-                                            'Comprobante de pago: pedido '
-                                            '#${order.id} confirmado por '
-                                            'Mercado Pago.',
+                                            order.paymentMethod == 'cash'
+                                                ? 'Pago en efectivo recibido para el pedido #${order.id}.'
+                                                : 'Pago del pedido #${order.id} confirmado por Mercado Pago.',
                                           ),
                                         if (order.status == 'pending_payment' &&
                                             order.expiresAt != null)
@@ -220,6 +236,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                             ),
                                           ),
                                         if (order.status == 'pending_payment' &&
+                                            order.paymentMethod != 'cash' &&
                                             order.expiresAt != null &&
                                             order.expiresAt!.isAfter(
                                               DateTime.now(),
@@ -281,9 +298,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
     }
   }
 
-  String _statusLabel(String status, DateTime? paymentExpiresAt) {
+  String _statusLabel(
+    String status,
+    DateTime? paymentExpiresAt, {
+    bool isCashPayment = false,
+  }) {
     switch (status) {
       case 'pending_payment':
+        if (isCashPayment) return 'Pendiente de pago en efectivo';
         if (paymentExpiresAt != null &&
             !paymentExpiresAt.isAfter(DateTime.now())) {
           return 'Esperando confirmación del proveedor';
@@ -308,8 +330,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
     }
   }
 
-  String _paymentMethodLabel(String method) {
+  String _paymentMethodLabel(String method, String? fulfillmentMethod) {
     switch (method.toLowerCase()) {
+      case 'cash':
+        return fulfillmentMethod == 'delivery'
+            ? 'Efectivo al repartidor'
+            : 'Efectivo en caja al recoger';
+      case 'online':
+        return 'Pago en línea con Mercado Pago';
       case 'oxxo':
         return 'Efectivo en OXXO';
       case 'visa':
@@ -321,6 +349,36 @@ class _OrdersScreenState extends State<OrdersScreen> {
         return 'Tarjeta American Express';
       default:
         return method;
+    }
+  }
+
+  String _fulfillmentMethodLabel(String method) {
+    switch (method) {
+      case 'pickup':
+        return 'Recoger en el local';
+      case 'delivery':
+        return 'Entrega a domicilio (gratis)';
+      default:
+        return method;
+    }
+  }
+
+  String _fulfillmentStatusLabel(String status) {
+    switch (status) {
+      case 'pending':
+        return 'Pendiente';
+      case 'preparing':
+        return 'En preparación';
+      case 'shipped':
+        return 'Enviado';
+      case 'delivered':
+        return 'Entregado';
+      case 'ready_for_pickup':
+        return 'Listo para recoger';
+      case 'picked_up':
+        return 'Recogido';
+      default:
+        return status;
     }
   }
 
