@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
+
 import '../models/product.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/navigation_bar.dart';
+import '../widgets/product_cart_actions.dart';
 
 class ProductDetailsScreen extends StatelessWidget {
   final Product product;
 
-  const ProductDetailsScreen({
-    super.key,
-    required this.product,
-  });
+  const ProductDetailsScreen({super.key, required this.product});
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +20,7 @@ class ProductDetailsScreen extends StatelessWidget {
             const AppNavigationBar(),
             Expanded(
               child: Container(
-                color:  Colors.blue[200],
+                color: Colors.blue[200],
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Card(
@@ -96,6 +95,35 @@ class ProductDetailsScreen extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: product.stock > 0
+                      ? () => addProductAndOfferNextStep(context, product)
+                      : null,
+                  icon: const Icon(Icons.add_shopping_cart),
+                  label: const Text('Agregar'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: product.stock > 0
+                      ? () => buyProductNow(context, product)
+                      : null,
+                  icon: const Icon(Icons.flash_on),
+                  label: const Text('Comprar ahora'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

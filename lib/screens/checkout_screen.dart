@@ -88,7 +88,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       if (_paymentMethod == 'cash') {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
           SnackBar(
             content: Text(
               _fulfillmentMethod == 'pickup'
