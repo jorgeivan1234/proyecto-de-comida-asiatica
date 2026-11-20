@@ -231,7 +231,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           const Text('No hay productos para mostrar.')
                         else
                           SizedBox(
-                            height: 340,
+                            height: 390,
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
                               itemCount: featuresProducts.length,
@@ -279,7 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   crossAxisCount: columns,
                                   crossAxisSpacing: 12,
                                   mainAxisSpacing: 12,
-                                  mainAxisExtent: 320,
+                                  mainAxisExtent: 380,
                                 ),
                             itemBuilder: (context, index) {
                               return ProductCard(

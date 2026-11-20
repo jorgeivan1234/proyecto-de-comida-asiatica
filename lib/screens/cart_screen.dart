@@ -77,138 +77,142 @@ class _CartScreenState extends State<CartScreen> {
                     );
                   }
 
-                  return Column(
-                    children: [
-                      Expanded(
-                        child: ListView.separated(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: cart.items.length,
-                          separatorBuilder: (_, _) => const SizedBox(height: 8),
-                          itemBuilder: (context, index) {
-                            final item = cart.items[index];
-                            return Card(
-                              child: Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: Row(
+                  return ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: cart.items.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final item = cart.items[index];
+                      return Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.asset(
+                                  item.product.image,
+                                  width: 72,
+                                  height: 72,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, _, _) => const SizedBox(
+                                    width: 72,
+                                    height: 72,
+                                    child: Icon(
+                                      Icons.image_not_supported_outlined,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: Image.asset(
-                                        item.product.image,
-                                        width: 72,
-                                        height: 72,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, _, _) => const SizedBox(
-                                          width: 72,
-                                          height: 72,
-                                          child: Icon(
-                                            Icons.image_not_supported_outlined,
-                                          ),
-                                        ),
+                                    Text(
+                                      item.product.name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            item.product.name,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          Text(
-                                            '\$${item.product.price.toStringAsFixed(2)} c/u',
-                                          ),
-                                          Text(
-                                            'Subtotal: \$${item.subtotal.toStringAsFixed(2)}',
-                                          ),
-                                        ],
-                                      ),
+                                    Text(
+                                      '\$${item.product.price.toStringAsFixed(2)} c/u',
                                     ),
-                                    IconButton(
-                                      tooltip: 'Quitar uno',
-                                      onPressed: () => cart.decreaseQuantity(
-                                        item.product.id,
-                                      ),
-                                      icon: const Icon(
-                                        Icons.remove_circle_outline,
-                                      ),
-                                    ),
-                                    Text('${item.quantity}'),
-                                    IconButton(
-                                      tooltip: 'Agregar uno',
-                                      onPressed: () {
-                                        final added = cart.addProduct(
-                                          item.product,
-                                        );
-                                        if (!added) {
-                                          ScaffoldMessenger.of(context)
-                                            ..hideCurrentSnackBar()
-                                            ..showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  'No hay más existencias de '
-                                                  '${item.product.name}',
-                                                ),
-                                              ),
-                                            );
-                                        }
-                                      },
-                                      icon: const Icon(
-                                        Icons.add_circle_outline,
-                                      ),
+                                    Text(
+                                      'Subtotal: \$${item.subtotal.toStringAsFixed(2)}',
                                     ),
                                   ],
                                 ),
                               ),
-                            );
-                          },
-                        ),
-                      ),
-                      SafeArea(
-                        top: false,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text(
-                                'Total: \$${cart.total.toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              IconButton(
+                                tooltip: 'Quitar uno',
+                                onPressed: () =>
+                                    cart.decreaseQuantity(item.product.id),
+                                icon: const Icon(Icons.remove_circle_outline),
                               ),
-                              const SizedBox(height: 12),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  TextButton(
-                                    onPressed: cart.clear,
-                                    child: const Text('Vaciar carrito'),
-                                  ),
-                                  FilledButton.icon(
-                                    onPressed: () => context.push('/checkout'),
-                                    icon: const Icon(Icons.arrow_forward),
-                                    label: const Text('Continuar'),
-                                  ),
-                                ],
+                              Text('${item.quantity}'),
+                              IconButton(
+                                tooltip: 'Agregar uno',
+                                onPressed: () {
+                                  final added = cart.addProduct(item.product);
+                                  if (!added) {
+                                    ScaffoldMessenger.of(context)
+                                      ..hideCurrentSnackBar()
+                                      ..showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'No hay más existencias de '
+                                            '${item.product.name}',
+                                          ),
+                                        ),
+                                      );
+                                  }
+                                },
+                                icon: const Icon(Icons.add_circle_outline),
                               ),
                             ],
                           ),
                         ),
-                      ),
-                    ],
+                      );
+                    },
                   );
                 },
               ),
             ),
           ],
         ),
+      ),
+      bottomNavigationBar: Consumer<CartProvider>(
+        builder: (context, cart, _) {
+          if (cart.items.isEmpty) return const SizedBox.shrink();
+
+          return SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Total: \$${cart.total.toStringAsFixed(2)} MXN',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      TextButton(
+                        onPressed: cart.clear,
+                        child: const Text('Vaciar carrito'),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: () => context.push('/checkout'),
+                          icon: const Icon(Icons.arrow_forward),
+                          label: const Text('Continuar con la compra'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
