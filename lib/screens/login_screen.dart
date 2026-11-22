@@ -11,9 +11,10 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _isLoading = false;
+  bool _ocultar = true;
 
   @override
   void dispose() {
@@ -22,7 +23,6 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  bool _isLoading = false;
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -82,10 +82,24 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Correo electrónico',
                             prefixIcon: Icon(Icons.email_outlined),
                             border: OutlineInputBorder(),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Colors.cyan,
+                                width: 2,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Colors.black,
+                                width:1.5,
+                              ),
+                            ),
                             isDense: true,
                           ),
                           validator: (value) {
@@ -101,11 +115,35 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 14),
                         TextFormField(
                           controller: _passwordController,
-                          obscureText: true,
-                          decoration: const InputDecoration(
+                          obscureText: _ocultar,
+                          decoration: InputDecoration(
                             labelText: 'Contraseña',
-                            prefixIcon: Icon(Icons.lock_outline),
-                            border: OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.person_outline,),       
+                            suffixIcon: IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  _ocultar = !_ocultar;
+                                });
+                              }, 
+                              icon: Icon(
+                                _ocultar ? Icons.visibility_off : Icons.visibility
+                              ),
+                            ),
+                            border: const OutlineInputBorder(),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Colors.cyan,
+                                width: 2,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Colors.black,
+                                width:1.5,
+                              ),
+                            ),
                             isDense: true,
                           ),
                           validator: (value) {

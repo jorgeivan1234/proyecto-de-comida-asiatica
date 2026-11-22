@@ -80,6 +80,9 @@ class ProductCard extends StatelessWidget {
                     label: const Text('Agregar'),
                   ),
                 ),
+                
+                SizedBox(height: 5),
+
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(

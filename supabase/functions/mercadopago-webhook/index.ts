@@ -22,6 +22,28 @@ function timingSafeEqual(left: string, right: string): boolean {
   return difference === 0;
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object"
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function firstString(...values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return null;
+}
+
+function firstNumber(...values: unknown[]): number | null {
+  for (const value of values) {
+    if (value === null || value === undefined || value === "") continue;
+    const number = Number(value);
+    if (Number.isFinite(number)) return number;
+  }
+  return null;
+}
+
 async function verifySignature(
   request: Request,
   dataId: string,
@@ -80,65 +102,133 @@ Deno.serve(async (request) => {
   }
 
   const url = new URL(request.url);
-  const data = event.data as Record<string, unknown> | undefined;
+  const data = asRecord(event.data);
   const dataId = String(url.searchParams.get("data.id") ?? data?.id ?? "");
-  const topic = String(event.type ?? event.topic ?? url.searchParams.get("topic") ?? "");
+  const topic = String(
+    event.type ??
+      event.topic ??
+      url.searchParams.get("topic") ??
+      url.searchParams.get("type") ??
+      "",
+  ).toLowerCase();
 
-  if (topic !== "payment" || !dataId) {
+  if (!["orders_v2", "order", "orders"].includes(topic) || !dataId) {
     return jsonResponse({ received: true, ignored: true });
   }
   if (!await verifySignature(request, dataId, webhookSecret)) {
     return jsonResponse({ error: "Invalid webhook signature." }, 401);
   }
 
-  const paymentResponse = await fetch(
-    `https://api.mercadopago.com/v1/payments/${encodeURIComponent(dataId)}`,
-    { headers: { Authorization: `Bearer ${accessToken}` } },
-  );
-  const payment = await paymentResponse.json();
-  if (!paymentResponse.ok) {
-    console.error("Could not verify Mercado Pago payment:", paymentResponse.status);
-    return jsonResponse({ error: "Could not verify payment." }, 502);
-  }
-  if (String(payment.id) !== dataId) {
-    return jsonResponse({ error: "Payment ID mismatch." }, 400);
+  let orderResponse: Response;
+  try {
+    orderResponse = await fetch(
+      `https://api.mercadopago.com/v1/orders/${encodeURIComponent(dataId)}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+  } catch (error) {
+    console.error("Mercado Pago order request failed:", error);
+    return jsonResponse({ error: "Could not verify order." }, 502);
   }
 
-  const orderId = Number(payment.external_reference);
+  const mercadoPagoOrder = await orderResponse.json();
+  if (!orderResponse.ok) {
+    console.error("Could not verify Mercado Pago order:", orderResponse.status);
+    return jsonResponse({ error: "Could not verify order." }, 502);
+  }
+  if (String(mercadoPagoOrder.id) !== dataId) {
+    return jsonResponse({ error: "Order ID mismatch." }, 400);
+  }
+
+  const orderId = Number(mercadoPagoOrder.external_reference);
   if (!Number.isSafeInteger(orderId) || orderId <= 0) {
     return jsonResponse({ error: "Invalid order reference." }, 400);
   }
 
-  const supportedStatuses = new Set([
-    "pending",
-    "in_process",
-    "approved",
-    "rejected",
-    "cancelled",
-    "expired",
-    "refunded",
-    "charged_back",
-  ]);
-  if (!supportedStatuses.has(payment.status)) {
+  const serviceClient = createClient(supabaseUrl, serviceRoleKey);
+  const { data: localOrder, error: localOrderError } = await serviceClient
+    .from("orders")
+    .select("provider_order_id, provider_payment_id")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (localOrderError) {
+    console.error("Could not load local order:", localOrderError.message);
+    return jsonResponse({ error: "Could not load local order." }, 500);
+  }
+  if (!localOrder) {
+    return jsonResponse({ received: true, ignored: true });
+  }
+  if (!localOrder.provider_order_id) {
+    return jsonResponse({ error: "Order checkout is not saved yet." }, 503);
+  }
+  if (localOrder.provider_order_id !== dataId) {
     return jsonResponse({ received: true, ignored: true });
   }
 
-  const ticketUrl =
-    payment.point_of_interaction?.transaction_data?.ticket_url ??
-    payment.transaction_details?.external_resource_url ??
-    null;
-  const serviceClient = createClient(supabaseUrl, serviceRoleKey);
+  const transactionData = asRecord(mercadoPagoOrder.transactions);
+  const paymentEntries = Array.isArray(transactionData?.payments)
+    ? transactionData.payments
+    : [];
+  const payment = asRecord(paymentEntries[paymentEntries.length - 1]);
+  const paymentMethod = asRecord(payment?.payment_method);
+  const paymentId = firstString(payment?.id, localOrder.provider_payment_id);
+
+  const statusMap: Record<string, string> = {
+    created: "pending",
+    processing: "in_process",
+    action_required: "in_process",
+    processed: "approved",
+    failed: "rejected",
+    canceled: "cancelled",
+    refunded: "refunded",
+  };
+  const providerStatus = statusMap[String(mercadoPagoOrder.status)];
+  if (!providerStatus) {
+    return jsonResponse({ received: true, ignored: true });
+  }
+  if (
+    (providerStatus === "approved" || providerStatus === "refunded") &&
+    !paymentId
+  ) {
+    console.error("Mercado Pago order has no payment transaction ID.");
+    return jsonResponse(
+      { error: "Order payment details are incomplete." },
+      502,
+    );
+  }
+
+  const paymentCreatedAt = firstString(
+    payment?.date_created,
+    mercadoPagoOrder.last_updated_date,
+    mercadoPagoOrder.created_date,
+  );
+  const approvedAt = firstString(
+    payment?.date_approved,
+    payment?.date_last_updated,
+    mercadoPagoOrder.last_updated_date,
+  ) ?? new Date().toISOString();
+  const paymentAmount = firstNumber(
+    payment?.paid_amount,
+    mercadoPagoOrder.total_paid_amount,
+    payment?.amount,
+    mercadoPagoOrder.total_amount,
+  );
+  const ticketUrl = firstString(paymentMethod?.ticket_url);
+
   const { data: result, error: processError } = await serviceClient.rpc(
     "process_mp_payment",
     {
       p_order_id: orderId,
-      p_payment_id: String(payment.id),
-      p_provider_status: payment.status,
-      p_amount: payment.transaction_amount,
-      p_currency: payment.currency_id,
-      p_payment_created_at: payment.date_created,
-      p_approved_at: payment.date_approved ?? new Date().toISOString(),
-      p_payment_method: payment.payment_method_id ?? null,
+      p_payment_id: paymentId,
+      p_provider_status: providerStatus,
+      p_amount: paymentAmount,
+      p_currency: firstString(mercadoPagoOrder.currency, payment?.currency_id),
+      p_payment_created_at: paymentCreatedAt,
+      p_approved_at: approvedAt,
+      p_payment_method: firstString(
+        paymentMethod?.id,
+        payment?.payment_method_id,
+      ),
       p_payment_ticket_url: ticketUrl,
     },
   );
@@ -150,13 +240,15 @@ Deno.serve(async (request) => {
 
   if (result?.result === "refund_required") {
     const refundResponse = await fetch(
-      `https://api.mercadopago.com/v1/payments/${encodeURIComponent(dataId)}/refunds`,
+      `https://api.mercadopago.com/v1/orders/${
+        encodeURIComponent(dataId)
+      }/refund`,
       {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
-          "X-Idempotency-Key": `order-${orderId}-payment-${dataId}-refund`,
+          "X-Idempotency-Key": `refund-${dataId}-${paymentId}`,
         },
         body: JSON.stringify({}),
       },
@@ -164,18 +256,29 @@ Deno.serve(async (request) => {
 
     if (!refundResponse.ok) {
       console.error("Automatic payment refund failed:", refundResponse.status);
-      return jsonResponse({ error: "Payment requires manual refund review." }, 500);
+      return jsonResponse(
+        { error: "Payment requires manual refund review." },
+        500,
+      );
     }
 
     const { error: refundUpdateError } = await serviceClient.rpc(
       "mark_mp_payment_refunded",
-      { p_order_id: orderId, p_payment_id: String(payment.id) },
+      { p_order_id: orderId, p_payment_id: paymentId },
     );
     if (refundUpdateError) {
-      console.error("Could not record payment refund:", refundUpdateError.message);
-      return jsonResponse({ error: "Refund succeeded but order update failed." }, 500);
+      console.error(
+        "Could not record payment refund:",
+        refundUpdateError.message,
+      );
+      return jsonResponse({
+        error: "Refund succeeded but order update failed.",
+      }, 500);
     }
   }
 
-  return jsonResponse({ received: true, result: result?.result ?? "processed" });
+  return jsonResponse({
+    received: true,
+    result: result?.result ?? "processed",
+  });
 });

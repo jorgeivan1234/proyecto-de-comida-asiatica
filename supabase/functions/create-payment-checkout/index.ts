@@ -20,6 +20,19 @@ function requiredEnv(name: string): string {
   return value;
 }
 
+function isMercadoPagoCheckoutUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    const allowedHosts = ["mercadopago.com", "mercadopago.com.mx"];
+    return url.protocol === "https:" &&
+      allowedHosts.some((host) =>
+        url.hostname === host || url.hostname.endsWith(`.${host}`)
+      );
+  } catch {
+    return false;
+  }
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -38,13 +51,12 @@ Deno.serve(async (request) => {
   const serviceRoleKey = requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
   const accessToken = requiredEnv("MP_ACCESS_TOKEN");
   const mpEnvironment = requiredEnv("MP_ENVIRONMENT");
-  if (
-    (mpEnvironment !== "test" && mpEnvironment !== "production") ||
-    (mpEnvironment === "test" && !accessToken.startsWith("TEST-")) ||
-    (mpEnvironment === "production" && !accessToken.startsWith("APP_USR-"))
-  ) {
-    console.error("Mercado Pago environment and access token do not match.");
-    return jsonResponse({ error: "Payment provider configuration is invalid." }, 500);
+  if (mpEnvironment !== "test" && mpEnvironment !== "production") {
+    console.error("MP_ENVIRONMENT must be 'test' or 'production'.");
+    return jsonResponse(
+      { error: "Payment provider configuration is invalid." },
+      500,
+    );
   }
 
   const userClient = createClient(supabaseUrl, anonKey, {
@@ -74,7 +86,7 @@ Deno.serve(async (request) => {
   const { data: order, error: orderError } = await serviceClient
     .from("orders")
     .select(
-      "id, user_id, status, payment_provider, total, expires_at, provider_preference_id, checkout_url, order_items(product_name, quantity, unit_price)",
+      "id, user_id, status, payment_provider, total, expires_at, provider_order_id, provider_idempotency_key, checkout_url, order_items(product_name, quantity, unit_price)",
     )
     .eq("id", orderId)
     .eq("user_id", user.id)
@@ -91,119 +103,183 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: "This order is not awaiting payment." }, 409);
   }
   if (order.payment_provider !== "mercadopago") {
-    return jsonResponse({ error: "This order is not set up for online payment." }, 409);
+    return jsonResponse({
+      error: "This order is not set up for online payment.",
+    }, 409);
   }
   if (new Date(order.expires_at).getTime() <= Date.now()) {
     return jsonResponse({ error: "The order reservation has expired." }, 409);
   }
-  if (order.checkout_url && order.provider_preference_id) {
+  if (order.checkout_url && order.provider_order_id) {
     return jsonResponse({
       order_id: order.id,
       checkout_url: order.checkout_url,
     });
   }
 
-  const notificationUrl =
-    `${supabaseUrl}/functions/v1/mercadopago-webhook`;
-  const preferenceBody = {
-    items: order.order_items.map((item: {
-      product_name: string;
-      quantity: number;
-      unit_price: number;
-    }) => ({
-      title: item.product_name,
-      quantity: item.quantity,
-      unit_price: Number(item.unit_price),
-      currency_id: "MXN",
-    })),
-    payer: user.email ? { email: user.email } : undefined,
-    payment_methods: {
-      excluded_payment_types: [
-        { id: "ticket" },
-        { id: "bank_transfer" },
-        { id: "atm" },
-        { id: "account_money" },
-      ],
-    },
+  let idempotencyKey = order.provider_idempotency_key as string | null;
+  if (!idempotencyKey) {
+    const candidateKey = crypto.randomUUID();
+    const { error: saveKeyError } = await serviceClient
+      .from("orders")
+      .update({ provider_idempotency_key: candidateKey })
+      .eq("id", order.id)
+      .eq("user_id", user.id)
+      .eq("status", "pending_payment")
+      .is("provider_idempotency_key", null);
+
+    if (saveKeyError) {
+      console.error(
+        "Could not save Mercado Pago idempotency key:",
+        saveKeyError.message,
+      );
+      return jsonResponse(
+        { error: "Could not prepare the payment checkout." },
+        500,
+      );
+    }
+
+    const { data: latestOrder, error: reloadError } = await serviceClient
+      .from("orders")
+      .select("provider_order_id, provider_idempotency_key, checkout_url")
+      .eq("id", order.id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (reloadError || !latestOrder?.provider_idempotency_key) {
+      console.error(
+        "Could not reload Mercado Pago checkout data:",
+        reloadError?.message ?? "Idempotency key was not saved.",
+      );
+      return jsonResponse(
+        { error: "Could not prepare the payment checkout." },
+        500,
+      );
+    }
+
+    if (latestOrder.checkout_url && latestOrder.provider_order_id) {
+      return jsonResponse({
+        order_id: order.id,
+        checkout_url: latestOrder.checkout_url,
+      });
+    }
+
+    idempotencyKey = latestOrder.provider_idempotency_key;
+  }
+
+  if (!idempotencyKey) {
+    console.error("Mercado Pago idempotency key is unavailable.");
+    return jsonResponse(
+      { error: "Could not prepare the payment checkout." },
+      500,
+    );
+  }
+
+  const items = order.order_items.map((item: {
+    product_name: string;
+    quantity: number;
+    unit_price: number;
+  }) => ({
+    title: item.product_name,
+    quantity: item.quantity,
+    unit_price: Number(item.unit_price).toFixed(2),
+  }));
+  const orderTotal = Number(order.total);
+  const itemsTotal = items.reduce(
+    (total: number, item: { quantity: number; unit_price: string }) =>
+      total + item.quantity * Number(item.unit_price),
+    0,
+  );
+  if (
+    !Number.isFinite(orderTotal) ||
+    orderTotal <= 0 ||
+    items.length === 0 ||
+    Math.round(itemsTotal * 100) !== Math.round(orderTotal * 100)
+  ) {
+    console.error("Stored order total does not match its items.");
+    return jsonResponse({ error: "The order total is invalid." }, 409);
+  }
+
+  const orderBody = {
+    type: "online",
+    processing_mode: "manual",
+    capture_mode: "automatic_async",
+    total_amount: orderTotal.toFixed(2),
     external_reference: String(order.id),
-    notification_url: notificationUrl,
-    expires: true,
-    expiration_date_from: new Date().toISOString(),
-    expiration_date_to: order.expires_at,
+    payer: user.email ? { email: user.email } : undefined,
+    items,
+    config: {
+      payment_method: {
+        not_allowed_types: ["ticket", "bank_transfer", "atm", "account_money"],
+      },
+    },
   };
 
-  let preference: {
+  let mercadoPagoOrder: {
     id?: string;
-    init_point?: string;
-    sandbox_init_point?: string;
+    checkout_url?: string;
+    message?: string;
+    error?: string;
   };
 
   try {
-    const response = await fetch("https://api.mercadopago.com/checkout/preferences", {
+    const response = await fetch("https://api.mercadopago.com/v1/orders", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
+        "X-Idempotency-Key": idempotencyKey,
       },
-      body: JSON.stringify(preferenceBody),
+      body: JSON.stringify(orderBody),
     });
-    const result = await response.json();
+    const result = await response.json() as typeof mercadoPagoOrder;
 
     if (!response.ok) {
-      console.error("Mercado Pago preference request failed:", response.status);
-      const { error: cancelError } = await userClient.rpc(
-        "cancel_pending_order",
-        { p_order_id: order.id },
+      console.error(
+        "Mercado Pago order request failed:",
+        response.status,
+        result.error ?? result.message ?? "No provider message.",
       );
-      if (cancelError) {
-        console.error("Could not release order reservation:", cancelError.message);
-      }
-      return jsonResponse({ error: "The payment checkout could not be created." }, 502);
+      return jsonResponse({
+        error: "The payment checkout could not be created.",
+      }, 502);
     }
 
-    preference = result;
+    mercadoPagoOrder = result;
   } catch (error) {
     console.error("Mercado Pago request failed:", error);
-    const { error: cancelError } = await userClient.rpc(
-      "cancel_pending_order",
-      { p_order_id: order.id },
-    );
-    if (cancelError) {
-      console.error("Could not release order reservation:", cancelError.message);
-    }
     return jsonResponse({ error: "The payment provider is unavailable." }, 502);
   }
 
-  const checkoutUrl = mpEnvironment === "test"
-    ? preference.sandbox_init_point
-    : preference.init_point;
-  if (!preference.id || !checkoutUrl) {
-    console.error("Mercado Pago returned an incomplete preference.");
-    const { error: cancelError } = await userClient.rpc(
-      "cancel_pending_order",
-      { p_order_id: order.id },
-    );
-    if (cancelError) {
-      console.error("Could not release order reservation:", cancelError.message);
-    }
-    return jsonResponse({ error: "The payment provider returned an invalid checkout." }, 502);
+  if (
+    !mercadoPagoOrder.id ||
+    !mercadoPagoOrder.checkout_url ||
+    !isMercadoPagoCheckoutUrl(mercadoPagoOrder.checkout_url)
+  ) {
+    console.error("Mercado Pago returned an invalid order checkout URL.");
+    return jsonResponse({
+      error: "The payment provider returned an invalid checkout.",
+    }, 502);
   }
 
   const { error: updateError } = await serviceClient
     .from("orders")
     .update({
       payment_provider: "mercadopago",
-      provider_preference_id: preference.id,
-      checkout_url: checkoutUrl,
+      provider_order_id: mercadoPagoOrder.id,
+      checkout_url: mercadoPagoOrder.checkout_url,
     })
     .eq("id", order.id)
     .eq("user_id", user.id)
     .eq("status", "pending_payment");
 
   if (updateError) {
-    console.error("Could not save Mercado Pago preference:", updateError.message);
+    console.error("Could not save Mercado Pago order:", updateError.message);
     return jsonResponse({ error: "Could not save the payment checkout." }, 500);
   }
 
-  return jsonResponse({ order_id: order.id, checkout_url: checkoutUrl });
+  return jsonResponse({
+    order_id: order.id,
+    checkout_url: mercadoPagoOrder.checkout_url,
+  });
 });
