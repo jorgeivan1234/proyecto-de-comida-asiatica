@@ -1,9 +1,8 @@
 import 'package:ccomcercio_electronico/models/product.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 
-import '../providers/cart_provider.dart';
+import 'product_cart_actions.dart';
 
 class ProductCard extends StatelessWidget {
   final Product product;
@@ -15,21 +14,17 @@ class ProductCard extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       elevation: 5,
-      child: InkWell(
-        onTap: () {
-          context.push('/details_product', extra: product);
-        },
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            //imagen del producto
-            SizedBox(
-              height: 160,
-              width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 160,
+            width: double.infinity,
+            child: InkWell(
+              onTap: () => context.push('/details_product', extra: product),
               child: Image.asset(
                 product.image,
                 fit: BoxFit.cover,
-                //si la imagen o carga mostraremos un icono
                 errorBuilder: (context, error, stackTrace) {
                   return const Center(
                     child: Icon(Icons.image_not_supported, size: 50),
@@ -37,9 +32,10 @@ class ProductCard extends StatelessWidget {
                 },
               ),
             ),
-
-            //informacion del producto
-            Padding(
+          ),
+          InkWell(
+            onTap: () => context.push('/details_product', extra: product),
+            child: Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -53,16 +49,12 @@ class ProductCard extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-
                   const SizedBox(height: 5),
-
                   Text(
                     product.category,
                     style: TextStyle(color: Colors.grey[600], fontSize: 14),
                   ),
-
                   const SizedBox(height: 8),
-
                   Text(
                     '\$${product.price.toStringAsFixed(2)}',
                     style: const TextStyle(
@@ -70,27 +62,41 @@ class ProductCard extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-
-                  FilledButton.icon(
-                    onPressed: () {
-                      final added = context.read<CartProvider>().addProduct(
-                        product,
-                      );
-                      final message = added
-                          ? '${product.name} agregado al carrito'
-                          : 'No hay más existencias de ${product.name}';
-                      ScaffoldMessenger.of(context)
-                        ..hideCurrentSnackBar()
-                        ..showSnackBar(SnackBar(content: Text(message)));
-                    },
-                    icon: const Icon(Icons.add_shopping_cart),
-                    label: const Text('Agregar al carrito'),
-                  ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+            child: Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: product.stock > 0
+                        ? () => addProductAndOfferNextStep(context, product)
+                        : null,
+                    icon: const Icon(Icons.add_shopping_cart),
+                    label: const Text('Agregar'),
+                  ),
+                ),
+                
+                SizedBox(height: 5),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: product.stock > 0
+                        ? () => buyProductNow(context, product)
+                        : null,
+                    icon: const Icon(Icons.flash_on),
+                    label: const Text('Comprar ahora'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

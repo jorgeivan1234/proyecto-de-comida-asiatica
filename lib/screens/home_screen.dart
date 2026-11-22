@@ -1,5 +1,6 @@
 import 'package:ccomcercio_electronico/models/models.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../widgets/product_card.dart';
 import '../widgets/app_drawer.dart';
@@ -81,18 +82,22 @@ class _HomeScreenState extends State<HomeScreen> {
         final featuresProducts = searchResults.take(3).toList();
 
         final visibleProducts = dbProducts.where((product) {
+          final productCategory = product.category.trim().toLowerCase();
           final matchesCategory =
-              selectedCategory == 'Todos' ||
-              product.category == selectedCategory;
+            selectedCategory == 'Todos' ||
+            (selectedCategory == 'Almuerzos' &&
+                productCategory.contains('almuerzo')) ||
+            (selectedCategory == 'Dulces' &&
+                productCategory.contains('dulce')) ||
+            (selectedCategory == 'Descuentos' &&
+                productCategory.contains('descuento'));
+
           final matchesName = product.name.toLowerCase().contains(query);
 
           return matchesCategory && matchesName;
         }).toList();
 
-        final categories = [
-          'Todos',
-          ...dbProducts.map((product) => product.category).toSet(),
-        ];
+        final categories = ['Todos', 'Almuerzos', 'Dulces', 'Descuentos'];
 
         final width = MediaQuery.sizeOf(context).width;
         final columns = width > 900
@@ -198,18 +203,40 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
 
                               const SizedBox(height: 8),
-                              TextButton(
-                                onPressed: () {
-                                  if (categories.contains('Almuezo')) {
-                                    setState(
-                                      () => selectedCategory = 'Almuerzo',
-                                    );
-                                  }
-                                },
-                                child: const Text(
-                                  'Ver almuerzos',
-                                  style: TextStyle(color: Colors.white),
-                                ),
+                              Wrap(
+                                spacing: 8,
+                                children: [
+                                  TextButton.icon(
+                                    onPressed: () => context.push('/almuerzos'),
+                                    icon: const Icon(
+                                      Icons.rice_bowl,
+                                      color: Colors.white,
+                                    ),
+                                    label: const Text(
+                                      'Ver almuerzos',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                  ),
+                                  TextButton.icon(
+                                    onPressed: () => context.push('/dulces'),
+                                    icon: const Icon(
+                                      Icons.cake_outlined,
+                                      color: Colors.white,
+                                    ),
+                                    label: const Text(
+                                      'Ver dulces',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                  ),
+                                  TextButton.icon(
+                                    onPressed: () => context.push('/descuentos'),
+                                    icon: const Icon(Icons.local_offer_outlined, color: Colors.white),
+                                    label: const Text(
+                                      'Ver descuentos',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -231,12 +258,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           const Text('No hay productos para mostrar.')
                         else
                           SizedBox(
-                            height: 340,
+                            height: 390,
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
                               itemCount: featuresProducts.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(width: 12),
+                              separatorBuilder: (_, __) => const SizedBox(width: 12),
                               itemBuilder: (context, index) {
                                 return SizedBox(
                                   width: 250,
@@ -279,7 +305,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   crossAxisCount: columns,
                                   crossAxisSpacing: 12,
                                   mainAxisSpacing: 12,
-                                  mainAxisExtent: 320,
+                                  mainAxisExtent: 380,
                                 ),
                             itemBuilder: (context, index) {
                               return ProductCard(

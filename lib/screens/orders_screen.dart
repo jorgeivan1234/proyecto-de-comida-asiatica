@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -259,6 +260,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                                 : const Icon(Icons.open_in_new),
                                             label: const Text('Continuar pago'),
                                           ),
+                                        TextButton.icon(
+                                          onPressed: () => context.go('/home'),
+                                          icon: const Icon(
+                                            Icons.storefront_outlined,
+                                          ),
+                                          label: const Text('Seguir comprando'),
+                                        ),
                                       ],
                                     ),
                                   ),

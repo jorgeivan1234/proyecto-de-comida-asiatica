@@ -9,11 +9,7 @@ import '../../widgets/role_gate.dart';
 final appRouter = GoRouter(
   initialLocation: '/login',
   routes: [
-    
-    GoRoute(
-      path: '/home', 
-      builder: (context, state) => const HomeScreen()
-    ),
+    GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
 
     GoRoute(
       path: '/catalog',
@@ -34,46 +30,55 @@ final appRouter = GoRouter(
       },
     ),
 
-    GoRoute(
-      path: '/orders', 
-      builder: (context, state) => const OrdersScreen()
-    ),
+    GoRoute(path: '/orders', builder: (context, state) => const OrdersScreen()),
 
     GoRoute(
       path: '/admin',
       builder: (context, state) =>
-          const RoleGate(
-            requiredRole: 'admin', 
-            child: AdminScreen()
-          ),
+          const RoleGate(requiredRole: 'admin', child: AdminScreen()),
     ),
 
     GoRoute(
       path: '/admin/orders',
-      builder: (context, state) => const RoleGate(
-        requiredRole: 'admin',
-        child: AdminOrdersScreen(),
-      ),
+      builder: (context, state) =>
+          const RoleGate(requiredRole: 'admin', child: AdminOrdersScreen()),
     ),
 
-    GoRoute(
-      path: '/cart', 
-      builder: (context, state) => const CartScreen()
-    ),
+    GoRoute(path: '/cart', builder: (context, state) => const CartScreen()),
 
     GoRoute(
       path: '/checkout',
       builder: (context, state) => const CheckoutScreen(),
     ),
 
-    GoRoute(
-      path: '/login', 
-      builder: (context, state) => const LoginScreen()
-    ),
+    GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
 
     GoRoute(
       path: '/register',
       builder: (context, state) => const RegisterScreen(),
+    ),
+
+    GoRoute(
+      path: '/almuerzos',
+      builder: (context, state) => const CategoryProductsScreen(
+        title: 'Almuerzos',
+        categoryKeyword: 'almuerzo',
+      ),
+    ),
+
+    GoRoute(
+      path: '/dulces',
+      builder: (context, state) => const CategoryProductsScreen(
+        title: 'Dulces',
+        categoryKeyword: 'dulce',
+      ),
+    ),
+    GoRoute(
+      path: '/descuentos',
+      builder: (context, state) => const CategoryProductsScreen(
+        title: 'Descuentos',
+        categoryKeyword: 'descuento',
+      ),
     ),
   ],
 );
