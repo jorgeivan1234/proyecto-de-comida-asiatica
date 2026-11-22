@@ -9,3 +9,4 @@ export 'register_screen.dart';
 export 'admin_orders_screen.dart';
 export 'checkout_screen.dart';
 export 'category_products_screen.dart';
+export 'legal_screens.dart';

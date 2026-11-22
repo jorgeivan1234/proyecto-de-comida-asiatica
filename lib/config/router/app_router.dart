@@ -80,5 +80,15 @@ final appRouter = GoRouter(
         categoryKeyword: 'descuento',
       ),
     ),
+
+    GoRoute(
+      path: '/privacy',
+      builder: (context, state) => const PrivacyScreen(),
+    ),
+
+    GoRoute(
+      path: '/terms',
+      builder: (context, state) => const TermsScreen(),
+    ),
   ],
 );
