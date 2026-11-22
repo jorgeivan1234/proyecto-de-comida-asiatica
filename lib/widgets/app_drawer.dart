@@ -73,6 +73,19 @@ class AppDrawer extends StatelessWidget {
               }
             },
           ),
+
+          const Divider(),
+
+          ListTile(
+            leading: const Icon(Icons.privacy_tip_outlined),
+            title: const Text('Aviso de Privacidad'),
+            onTap: () => context.go('/privacy'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.description_outlined),
+            title: const Text('Terminos y Condiciones'),
+            onTap: () => context.go('/terms'),
+          ),
         ],
       ),
     );
