@@ -90,5 +90,13 @@ final appRouter = GoRouter(
       path: '/terms',
       builder: (context, state) => const TermsScreen(),
     ),
+
+    GoRoute(
+      path: '/order-tracking/:id',
+      builder: (context, state) {
+        final id = int.parse(state.pathParameters['id']!);
+        return OrderTrackingScreen(orderId: id);
+      },
+    ),
   ],
 );

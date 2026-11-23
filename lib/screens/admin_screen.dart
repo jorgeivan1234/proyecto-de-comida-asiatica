@@ -1,4 +1,3 @@
-import 'package:ccomcercio_electronico/data/mock_products.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -16,7 +15,7 @@ class AdminScreen extends StatefulWidget {
 
 class _AdminScreenState extends State<AdminScreen> {
   late Future<List<Product>> _productsFuture;
-  late Future <Map<String, num>> _metricsFuture;
+  late Future<Map<String, num>> _metricsFuture;
 
   @override
   void initState() {
@@ -27,23 +26,22 @@ class _AdminScreenState extends State<AdminScreen> {
 
   Future<List<Product>> _loadProducts() async {
     final rows = await Supabase.instance.client
-      .from('products')
-      .select('id, name, description, price, category, image, stock')
-      .order('name');
+        .from('products')
+        .select('id, name, description, price, category, image, stock')
+        .order('name');
 
-    return rows.map<Product>((row){
+    return rows.map<Product>((row) {
       return Product(
-        id: row['id'] as int, 
-        name: row['name']as String, 
-        description: row['description'] as String, 
-        price:( row['price'] as num).toDouble(), 
-        category: row['category'] as String, 
-        image: row['image'] as String, 
-        stock: row['stock']as int,
+        id: row['id'] as int,
+        name: row['name'] as String,
+        description: row['description'] as String,
+        price: (row['price'] as num).toDouble(),
+        category: row['category'] as String,
+        image: row['image'] as String,
+        stock: row['stock'] as int,
       );
     }).toList();
   }
-  
 
   Future<void> _openProductForm({Product? product}) async {
     final saved = await showDialog<bool>(
@@ -52,7 +50,7 @@ class _AdminScreenState extends State<AdminScreen> {
     );
 
     if (saved == true && mounted) {
-      setState((){
+      setState(() {
         _productsFuture = _loadProducts();
       });
     }
@@ -64,8 +62,8 @@ class _AdminScreenState extends State<AdminScreen> {
     );
 
     if (response is! Map) {
-      throw const FormatException('Respuesta invalida al cargar metricas.');
-    } 
+      throw const FormatException('Respuesta inválida al cargar métricas.');
+    }
 
     final data = Map<String, dynamic>.from(response);
     final totalSales = data['total_sales'];
@@ -83,15 +81,15 @@ class _AdminScreenState extends State<AdminScreen> {
 
   Widget _buildMetrics() {
     return FutureBuilder<Map<String, num>>(
-      future: _metricsFuture, 
+      future: _metricsFuture,
       builder: (context, snapshot) {
-        if(snapshot.connectionState == ConnectionState.waiting){
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const Padding(
             padding: EdgeInsets.all(16),
             child: LinearProgressIndicator(),
           );
         }
-      
+
         if (snapshot.hasError) {
           return Padding(
             padding: const EdgeInsets.all(16),
@@ -99,17 +97,18 @@ class _AdminScreenState extends State<AdminScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    'No se pudieron cargar las metricas: ${snapshot.error}',
+                    'No se pudieron cargar las métricas: ${snapshot.error}',
+                    style: const TextStyle(color: Colors.red),
                   ),
                 ),
                 TextButton(
                   onPressed: () {
-                    setState((){
+                    setState(() {
                       _metricsFuture = _loadMetrics();
                     });
                   },
                   child: const Text('Reintentar'),
-                )
+                ),
               ],
             ),
           );
@@ -120,40 +119,90 @@ class _AdminScreenState extends State<AdminScreen> {
         final averageTicket = metrics['average_ticket']!.toDouble();
 
         final cards = [
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.attach_money),
-              title: const Text('Ventas acumuladas'),
-              subtitle: Text('\$${totalSales.toStringAsFixed(2)} MXN'),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.deepOrange.shade400, Colors.deepOrange.shade600],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.deepOrange.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.attach_money, size: 40, color: Colors.white),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Ventas Totales', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                    const SizedBox(height: 4),
+                    Text('\$${totalSales.toStringAsFixed(2)} MXN', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ],
             ),
           ),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.receipt_long),
-              title: const Text('Ticket_promedio'),
-              subtitle: Text('\$${averageTicket.toStringAsFixed(2)} MXN'),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.blue.shade400, Colors.blue.shade600],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blue.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.receipt_long, size: 40, color: Colors.white),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Ticket Promedio (AOV)', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                    const SizedBox(height: 4),
+                    Text('\$${averageTicket.toStringAsFixed(2)} MXN', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ],
             ),
           ),
         ];
 
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              if (constraints.maxWidth < 520) {
-                return Column(children: cards);
+              if (constraints.maxWidth < 600) {
+                return Column(children: [cards[0], const SizedBox(height: 12), cards[1]]);
               }
               return Row(
                 children: [
                   Expanded(child: cards[0]),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 16),
                   Expanded(child: cards[1]),
                 ],
               );
             },
           ),
         );
-      }
+      },
     );
   }
 
@@ -163,31 +212,52 @@ class _AdminScreenState extends State<AdminScreen> {
       drawer: const AppDrawer(),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openProductForm(),
-        icon: const Icon(Icons.add), 
+        icon: const Icon(Icons.add),
         label: const Text('Nuevo producto'),
+        backgroundColor: Colors.deepOrange,
+        foregroundColor: Colors.white,
       ),
       body: SafeArea(
         child: Column(
-          
           children: [
-            
             const AppNavigationBar(),
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Administrar productos',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold
+            
+            // Barra superior de navegación interna Admin (Catálogo / Pedidos y Envíos)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Panel Administrativo',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
-                ),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepOrange.shade50,
+                      foregroundColor: Colors.deepOrange,
+                    ),
+                    onPressed: () => context.push('/admin/orders'),
+                    icon: const Icon(Icons.local_shipping),
+                    label: const Text('Gestionar Envíos'),
+                  ),
+                ],
               ),
             ),
 
             _buildMetrics(),
-            
+
+            const Padding(
+              padding: EdgeInsets.fromLTRB(18, 12, 18, 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Catálogo de Productos',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+
             Expanded(
               child: FutureBuilder<List<Product>>(
                 future: _productsFuture,
@@ -208,8 +278,8 @@ class _AdminScreenState extends State<AdminScreen> {
                               setState(() {
                                 _productsFuture = _loadProducts();
                               });
-                            }, 
-                            child: const Text('Volver a internar'),
+                            },
+                            child: const Text('Volver a intentar'),
                           ),
                         ],
                       ),
@@ -220,39 +290,42 @@ class _AdminScreenState extends State<AdminScreen> {
 
                   if (products.isEmpty) {
                     return const Center(
-                      child: Text('Todavia no hay producto.'),
+                      child: Text('Todavía no hay productos.'),
                     );
                   }
 
                   return ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 88),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
                     itemCount: products.length,
                     itemBuilder: (context, index) {
                       final product = products[index];
 
                       return Card(
+                        elevation: 2,
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         child: ListTile(
-                          leading: Image.asset(
-                            product.image,
-                            width: 56,
-                            height: 56,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _,) => const Icon(Icons.image_not_supported),
-
+                          contentPadding: const EdgeInsets.all(12),
+                          leading: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.asset(
+                              product.image,
+                              width: 56,
+                              height: 56,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported, size: 40),
+                            ),
                           ),
-                          title: Text(product.name),
+                          title: Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                           subtitle: Text(
-                            '${product.category} . '
-                            '\$${product.price.toStringAsFixed(2)} .'
-                            'Existencias: ${product.stock}\n'
-                            '${product.description}',
-                            maxLines: 3,
+                            '${product.category} · \$${product.price.toStringAsFixed(2)} · Stock: ${product.stock}\n${product.description}',
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
                           isThreeLine: true,
                           trailing: IconButton(
                             onPressed: () => _openProductForm(product: product),
-                            icon: const Icon(Icons.edit)
+                            icon: const Icon(Icons.edit, color: Colors.deepOrange),
                           ),
                         ),
                       );
@@ -261,11 +334,6 @@ class _AdminScreenState extends State<AdminScreen> {
                 },
               ),
             ),
-            ListTile(
-              leading: const Icon(Icons.receipt_long),
-              title: const Text('Gestionar pedidos.'),
-              onTap: () => context.push('/admin/orders'),
-            )
           ],
         ),
       ),
@@ -273,22 +341,16 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 }
 
-
 class ProductFormDialog extends StatefulWidget {
-
   final Product? product;
 
-  const ProductFormDialog({
-    super.key,
-    this.product, 
-  });
+  const ProductFormDialog({super.key, this.product});
 
   @override
   State<ProductFormDialog> createState() => _ProductFormDialogState();
 }
 
 class _ProductFormDialogState extends State<ProductFormDialog> {
-
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
   late final TextEditingController _descripcionController;
@@ -332,7 +394,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
   String? _validPrice(String? value) {
     final price = double.tryParse((value ?? '').trim().replaceAll(',', '.'));
     if (price == null || price < 0) {
-      return 'Ingresa existencia enteras, iguales o mayores a 0.';
+      return 'Ingresa un precio válido.';
     }
     return null;
   }
@@ -340,11 +402,10 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
   String? _validStock(String? value) {
     final stock = int.tryParse((value ?? '').trim());
     if (stock == null || stock < 0) {
-      return 'Ingresa existencia enteras, iguales o mayores a 0.';
+      return 'Ingresa un stock entero válido.';
     }
     return null;
   }
-
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
@@ -354,32 +415,32 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
     final values = <String, dynamic>{
       'name': _nameController.text.trim(),
       'description': _descripcionController.text.trim(),
-      'price':double.parse(_priceController.text.trim().replaceAll(',', '.')),
+      'price': double.parse(_priceController.text.trim().replaceAll(',', '.')),
       'category': _categoryController.text.trim(),
       'image': _imageController.text.trim(),
       'stock': int.parse(_stockController.text.trim()),
     };
 
     try {
-      final product = Supabase.instance.client.from('products');
+      final productQuery = Supabase.instance.client.from('products');
 
       if (widget.product == null) {
-        await product.insert(values);
+        await productQuery.insert(values);
       } else {
-        await product.update(values).eq('id', widget.product!.id);
+        await productQuery.update(values).eq('id', widget.product!.id);
       }
 
       if (mounted) Navigator.of(context).pop(true);
     } on PostgrestException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo guardar: ${error.message}'))
+        SnackBar(content: Text('No se pudo guardar: ${error.message}')),
       );
     } on Exception catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ocurrio un error: ${error}'))
-      );    
+        SnackBar(content: Text('Ocurrió un error: $error')),
+      );
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -387,7 +448,6 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-
     final isEditing = widget.product != null;
 
     return AlertDialog(
@@ -402,12 +462,12 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
               children: [
                 TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'Nombres'),
+                  decoration: const InputDecoration(labelText: 'Nombre'),
                   validator: _requiredText,
                 ),
                 TextFormField(
                   controller: _descripcionController,
-                  decoration: const InputDecoration(labelText: 'Descripcion'),
+                  decoration: const InputDecoration(labelText: 'Descripción'),
                   maxLines: 3,
                   validator: _requiredText,
                 ),
@@ -421,19 +481,19 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                   controller: _imageController,
                   decoration: const InputDecoration(
                     labelText: 'Ruta de imagen (asset)',
-                    hintText: 'assets/images/ramen_miso.jpg'
+                    hintText: 'assets/images/ramen_miso.jpg',
                   ),
                   validator: _requiredText,
                 ),
                 TextFormField(
                   controller: _stockController,
-                  decoration: const InputDecoration(labelText: 'Existencia'),
+                  decoration: const InputDecoration(labelText: 'Existencia (Stock)'),
                   keyboardType: TextInputType.number,
                   validator: _validStock,
                 ),
                 TextFormField(
                   controller: _categoryController,
-                  decoration: const InputDecoration(labelText: 'Categorias'),
+                  decoration: const InputDecoration(labelText: 'Categoría'),
                   validator: _requiredText,
                 ),
               ],
@@ -443,11 +503,11 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: _isSaving ? null : () => Navigator.pop(context, false), 
-          child: const Text('cancelar'),
+          onPressed: _isSaving ? null : () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
         ),
         FilledButton(
-          onPressed: _isSaving ? null : _save, 
+          onPressed: _isSaving ? null : _save,
           child: Text(_isSaving ? 'Guardando...' : 'Guardar'),
         ),
       ],

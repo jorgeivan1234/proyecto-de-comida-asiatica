@@ -1,4 +1,4 @@
-import 'order_item.dart';
+import 'models.dart';
 
 class Order {
   final int id;
@@ -11,7 +11,7 @@ class Order {
   final String? checkoutUrl;
   final String? paymentTicketUrl;
   final String? paymentMethod;
-  final String? fulfillmentMethod;
+  final String? fulfillmentMethod; 
   final String? deliveryAddress;
   final String? fulfillmentStatus;
 
@@ -31,6 +31,5 @@ class Order {
     this.fulfillmentStatus,
   }) : items = List.unmodifiable(items);
 
-  // El total se calcula con los precios guardados al confirmar la compra.
   double get total => items.fold(0, (sum, item) => sum + item.subtotal);
 }
