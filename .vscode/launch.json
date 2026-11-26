@@ -7,19 +7,31 @@
         {
             "name": "ccomcercio_electronico",
             "request": "launch",
-            "type": "dart"
+            "type": "dart",
+            "toolArgs": [
+                "--dart-define=SUPABASE_URL=${env:SUPABASE_URL}",
+                "--dart-define=SUPABASE_PUBLISHABLE_KEY=${env:SUPABASE_PUBLISHABLE_KEY}"
+            ]
         },
         {
             "name": "ccomcercio_electronico (profile mode)",
             "request": "launch",
             "type": "dart",
-            "flutterMode": "profile"
+            "flutterMode": "profile",
+            "toolArgs": [
+                "--dart-define=SUPABASE_URL=${env:SUPABASE_URL}",
+                "--dart-define=SUPABASE_PUBLISHABLE_KEY=${env:SUPABASE_PUBLISHABLE_KEY}"
+            ]
         },
         {
             "name": "ccomcercio_electronico (release mode)",
             "request": "launch",
             "type": "dart",
-            "flutterMode": "release"
+            "flutterMode": "release",
+            "toolArgs": [
+                "--dart-define=SUPABASE_URL=${env:SUPABASE_URL}",
+                "--dart-define=SUPABASE_PUBLISHABLE_KEY=${env:SUPABASE_PUBLISHABLE_KEY}"
+            ]
         }
     ]
 }

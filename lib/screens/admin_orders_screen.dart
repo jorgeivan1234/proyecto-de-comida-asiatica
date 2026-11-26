@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../widgets/app_drawer.dart';
 import '../widgets/navigation_bar.dart';
 
@@ -14,6 +15,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   late Future<List<Map<String, dynamic>>> _ordersFuture;
   int? _updatingOrderId;
   int? _confirmingCashOrderId;
+  int? _recordingCashRefundOrderId;
 
   @override
   void initState() {
@@ -27,6 +29,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
         .select(
           'id, user_id, status, payment_status, payment_provider, '
           'payment_method, fulfillment_status, fulfillment_method, '
+          'payment_provider, payment_status, refund_destination, wallet_amount, '
           'delivery_address, total, created_at, driver_name, '
           'order_items(product_name, quantity, unit_price)',
         )
@@ -41,7 +44,11 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     });
   }
 
-  Future<void> _updateFulfillmentStatus(int orderId, String newStatus, {String? driverName}) async {
+  Future<void> _updateFulfillmentStatus(
+    int orderId,
+    String newStatus, {
+    String? driverName,
+  }) async {
     setState(() => _updatingOrderId = orderId);
 
     try {
@@ -58,7 +65,9 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Estado de envío actualizado correctamente.')),
+        const SnackBar(
+          content: Text('Estado de envío actualizado correctamente.'),
+        ),
       );
       _refreshOrders();
     } on PostgrestException catch (error) {
@@ -68,9 +77,8 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       );
     } on Exception catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ocurrió un error: $error')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Ocurrió un error: $error')));
     } finally {
       if (mounted) setState(() => _updatingOrderId = null);
     }
@@ -124,10 +132,36 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     } on PostgrestException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo confirmar el efectivo: ${error.message}')),
+        SnackBar(
+          content: Text('No se pudo confirmar el efectivo: ${error.message}'),
+        ),
       );
     } finally {
       if (mounted) setState(() => _confirmingCashOrderId = null);
+    }
+  }
+
+  Future<void> _recordManualCashRefund(int orderId) async {
+    setState(() => _recordingCashRefundOrderId = orderId);
+
+    try {
+      await Supabase.instance.client.rpc(
+        'confirm_manual_cash_refund',
+        params: {'p_order_id': orderId},
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reembolso en efectivo registrado.')),
+      );
+      _refreshOrders();
+    } on PostgrestException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo registrar: ${error.message}')),
+      );
+    } finally {
+      if (mounted) setState(() => _recordingCashRefundOrderId = null);
     }
   }
 
@@ -136,7 +170,10 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       return const [
         DropdownMenuItem(value: 'pending', child: Text('Pendiente')),
         DropdownMenuItem(value: 'preparing', child: Text('En preparación')),
-        DropdownMenuItem(value: 'ready_for_pickup', child: Text('Listo para recoger')),
+        DropdownMenuItem(
+          value: 'ready_for_pickup',
+          child: Text('Listo para recoger'),
+        ),
         DropdownMenuItem(value: 'picked_up', child: Text('Recogido')),
       ];
     }
@@ -167,10 +204,15 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                       children: [
                         Text(
                           'Gestión de Pedidos y Envíos',
-                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         SizedBox(height: 4),
-                        Text('Supervisa entregas, pagos y asigna repartidores.'),
+                        Text(
+                          'Supervisa entregas, pagos y asigna repartidores.',
+                        ),
                       ],
                     ),
                   ),
@@ -211,7 +253,9 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
 
                   final orders = snapshot.data ?? [];
                   if (orders.isEmpty) {
-                    return const Center(child: Text('Todavía no hay pedidos registrados.'));
+                    return const Center(
+                      child: Text('Todavía no hay pedidos registrados.'),
+                    );
                   }
 
                   return ListView.separated(
@@ -221,23 +265,51 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                     itemBuilder: (context, index) {
                       final order = orders[index];
                       final orderId = order['id'] as int;
-                      final isPaid = order['status'] == 'paid' || order['payment_status'] == 'approved';
-                      final isPickup = (order['fulfillment_method'] as String? ?? 'pickup') == 'pickup';
-                      final fulfillmentStatus = order['fulfillment_status'] as String? ?? 'pending';
-                      final driverName = order['driver_name'] as String? ?? 'No asignado';
-                      final createdAt = DateTime.parse(order['created_at'] as String).toLocal();
+                      final isPaid =
+                          order['status'] == 'paid' ||
+                          order['payment_status'] == 'approved';
+                      final isPickup =
+                          (order['fulfillment_method'] as String? ??
+                              'pickup') ==
+                          'pickup';
+                      final fulfillmentStatus =
+                          order['fulfillment_status'] as String? ?? 'pending';
+                      final driverName =
+                          order['driver_name'] as String? ?? 'No asignado';
+                      final createdAt = DateTime.parse(
+                        order['created_at'] as String,
+                      ).toLocal();
                       final items = order['order_items'] as List? ?? [];
+                      final paymentStatus =
+                          order['payment_status'] as String? ?? 'pending';
+                      final paymentProvider =
+                          order['payment_provider'] as String? ?? '';
+                      final walletAmount = (order['wallet_amount'] as num? ?? 0)
+                          .toDouble();
 
                       return Card(
                         elevation: 3,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                         clipBehavior: Clip.antiAlias,
                         child: ExpansionTile(
-                          tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                          childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                          tilePadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 8,
+                          ),
+                          childrenPadding: const EdgeInsets.fromLTRB(
+                            20,
+                            0,
+                            20,
+                            16,
+                          ),
                           title: Text(
                             'Pedido #$orderId',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
                           subtitle: Text(
                             '${createdAt.day}/${createdAt.month}/${createdAt.year} · \$${(order['total'] as num).toStringAsFixed(2)} MXN',
@@ -247,63 +319,167 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                             for (final rawItem in items)
                               Builder(
                                 builder: (context) {
-                                  final item = Map<String, dynamic>.from(rawItem as Map);
+                                  final item = Map<String, dynamic>.from(
+                                    rawItem as Map,
+                                  );
                                   return ListTile(
                                     contentPadding: EdgeInsets.zero,
                                     dense: true,
                                     title: Text(item['product_name'] as String),
-                                    subtitle: Text('${item['quantity']} × \$${(item['unit_price'] as num).toStringAsFixed(2)}'),
+                                    subtitle: Text(
+                                      '${item['quantity']} × \$${(item['unit_price'] as num).toStringAsFixed(2)}',
+                                    ),
                                   );
                                 },
                               ),
                             const SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Pago: ${isPaid ? 'Confirmado' : paymentStatus}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            if (paymentStatus == 'refund_pending' ||
+                                paymentStatus == 'refund_requested')
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  paymentProvider == 'cash'
+                                      ? 'Reembolso en efectivo pendiente: '
+                                            '\$${((order['total'] as num).toDouble() - walletAmount).toStringAsFixed(2)}'
+                                      : paymentStatus == 'refund_requested'
+                                      ? 'Reembolso solicitado a Mercado Pago; pendiente de confirmación.'
+                                      : 'Reembolso a Mercado Pago pendiente: '
+                                            '\$${((order['total'] as num).toDouble() - walletAmount).toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    color: Colors.deepOrange,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
                             Row(
                               children: [
-                                Icon(isPickup ? Icons.storefront : Icons.delivery_dining, size: 20, color: Colors.deepOrange),
+                                Icon(
+                                  isPickup
+                                      ? Icons.storefront
+                                      : Icons.delivery_dining,
+                                  size: 20,
+                                  color: Colors.deepOrange,
+                                ),
                                 const SizedBox(width: 8),
-                                Text(isPickup ? 'Modalidad: Recoger en local' : 'Modalidad: A domicilio', style: const TextStyle(fontWeight: FontWeight.w500)),
+                                Text(
+                                  isPickup
+                                      ? 'Modalidad: Recoger en local'
+                                      : 'Modalidad: A domicilio',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
                               ],
                             ),
                             if (!isPickup) ...[
                               const SizedBox(height: 4),
                               Row(
                                 children: [
-                                  const Icon(Icons.person, size: 20, color: Colors.blue),
+                                  const Icon(
+                                    Icons.person,
+                                    size: 20,
+                                    color: Colors.blue,
+                                  ),
                                   const SizedBox(width: 8),
-                                  Text('Repartidor: $driverName', style: const TextStyle(fontWeight: FontWeight.w500)),
+                                  Text(
+                                    'Repartidor: $driverName',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ],
                             const SizedBox(height: 16),
 
+                            if (fulfillmentStatus == 'cancelled') ...[
+                              const Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'Pedido cancelado por el cliente.',
+                                  style: TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              if (paymentStatus == 'refund_pending' &&
+                                  paymentProvider == 'cash') ...[
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    onPressed:
+                                        _recordingCashRefundOrderId == orderId
+                                        ? null
+                                        : () =>
+                                              _recordManualCashRefund(orderId),
+                                    icon: _recordingCashRefundOrderId == orderId
+                                        ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : const Icon(Icons.payments_outlined),
+                                    label: const Text(
+                                      'Registrar reembolso manual en efectivo',
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+
                             // Botón rápido de acción para envío a domicilio
-                            if (!isPickup && fulfillmentStatus == 'preparing')
+                            if (fulfillmentStatus != 'cancelled' &&
+                                !isPickup &&
+                                fulfillmentStatus == 'preparing')
                               SizedBox(
                                 width: double.infinity,
                                 child: FilledButton.icon(
-                                  style: FilledButton.styleFrom(backgroundColor: Colors.deepOrange),
-                                  onPressed: () => _promptAssignDriverAndShip(orderId),
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: Colors.deepOrange,
+                                  ),
+                                  onPressed: () =>
+                                      _promptAssignDriverAndShip(orderId),
                                   icon: const Icon(Icons.local_shipping),
-                                  label: const Text('Asignar Repartidor y Marcar "En Camino"'),
+                                  label: const Text(
+                                    'Asignar Repartidor y Marcar "En Camino"',
+                                  ),
                                 ),
                               ),
 
-                            const SizedBox(height: 12),
-                            DropdownButtonFormField<String>(
-                              value: fulfillmentStatus,
-                              decoration: const InputDecoration(
-                                labelText: 'Actualizar Estado de Entrega',
-                                border: OutlineInputBorder(),
+                            if (fulfillmentStatus != 'cancelled') ...[
+                              const SizedBox(height: 12),
+                              DropdownButtonFormField<String>(
+                                value: fulfillmentStatus,
+                                decoration: const InputDecoration(
+                                  labelText: 'Actualizar Estado de Entrega',
+                                  border: OutlineInputBorder(),
+                                ),
+                                items: _fulfillmentOptions(isPickup),
+                                onChanged: _updatingOrderId == orderId
+                                    ? null
+                                    : (value) {
+                                        if (value != null) {
+                                          _updateFulfillmentStatus(
+                                            orderId,
+                                            value,
+                                          );
+                                        }
+                                      },
                               ),
-                              items: _fulfillmentOptions(isPickup),
-                              onChanged: _updatingOrderId == orderId
-                                  ? null
-                                  : (value) {
-                                      if (value != null) {
-                                        _updateFulfillmentStatus(orderId, value);
-                                      }
-                                    },
-                            ),
+                            ],
                           ],
                         ),
                       );

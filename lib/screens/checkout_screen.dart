@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -22,6 +24,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String _fulfillmentMethod = 'pickup';
   String? _paymentMethod;
   bool _isSubmitting = false;
+  bool _isLoadingWallet = true;
+  bool _applyStoreCredit = false;
+  double _walletBalance = 0;
+  Object? _walletBalanceError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWalletBalance();
+  }
 
   @override
   void dispose() {
@@ -29,12 +41,36 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     super.dispose();
   }
 
+  Future<void> _loadWalletBalance() async {
+    try {
+      final balance = await context.read<CartProvider>().loadWalletBalance();
+      if (!mounted) return;
+      setState(() {
+        _walletBalance = balance;
+        _walletBalanceError = null;
+        _isLoadingWallet = false;
+      });
+    } on Exception catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _walletBalanceError = error;
+        _isLoadingWallet = false;
+      });
+    }
+  }
+
+  double _walletAmountFor(double total) {
+    return _applyStoreCredit ? math.min(_walletBalance, total) : 0;
+  }
+
   Future<void> _confirmPurchase(CartProvider cart) async {
     if (_isSubmitting) return;
 
     var orderCreated = false;
+    final walletAmount = _walletAmountFor(cart.total);
+    final amountDue = cart.total - walletAmount;
 
-    if (_paymentMethod == null) {
+    if (amountDue > 0 && _paymentMethod == null) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Elige cómo vas a pagar.')));
@@ -51,8 +87,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           'Modalidad: '
           '${_fulfillmentMethod == 'pickup' ? 'Recoger en el local' : 'Entrega a domicilio'}\n'
           '${_fulfillmentMethod == 'delivery' ? 'Dirección: ${_deliveryAddressController.text.trim()}\n' : ''}'
-          'Pago: ${_paymentMethod == 'cash' ? (_fulfillmentMethod == 'pickup' ? 'Efectivo en caja' : 'Efectivo al repartidor') : 'Mercado Pago'}\n'
-          'Total: \$${cart.total.toStringAsFixed(2)}',
+          '${walletAmount > 0 ? 'Saldo de tienda: -\$${walletAmount.toStringAsFixed(2)}\n' : ''}'
+          'Pago: ${amountDue == 0
+              ? 'Saldo de tienda'
+              : _paymentMethod == 'cash'
+              ? (_fulfillmentMethod == 'pickup' ? 'Efectivo en caja' : 'Efectivo al repartidor')
+              : 'Mercado Pago'}\n'
+          'Total: \$${amountDue.toStringAsFixed(2)}',
         ),
         actions: [
           TextButton(
@@ -62,7 +103,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
             child: Text(
-              _paymentMethod == 'cash'
+              amountDue == 0
+                  ? 'Confirmar pedido'
+                  : _paymentMethod == 'cash'
                   ? 'Confirmar pedido'
                   : 'Continuar al pago',
             ),
@@ -81,19 +124,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         deliveryAddress: _fulfillmentMethod == 'delivery'
             ? _deliveryAddressController.text.trim()
             : null,
-        paymentMethod: _paymentMethod!,
+        paymentMethod: amountDue == 0 ? 'wallet' : _paymentMethod!,
+        walletAmount: walletAmount,
       );
       if (order == null || !mounted) return;
       orderCreated = true;
 
-      if (_paymentMethod == 'cash') {
+      if (amountDue == 0 || _paymentMethod == 'cash') {
         if (!mounted) return;
         final messenger = ScaffoldMessenger.of(context);
         messenger.hideCurrentSnackBar();
         messenger.showSnackBar(
           SnackBar(
             content: Text(
-              _fulfillmentMethod == 'pickup'
+              amountDue == 0
+                  ? 'Pedido pagado con tu saldo de tienda.'
+                  : _fulfillmentMethod == 'pickup'
                   ? 'Pedido registrado. Pagarás en caja al recogerlo.'
                   : 'Pedido registrado. Pagarás en efectivo al repartidor.',
             ),
@@ -169,6 +215,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
+    final walletAmount = _walletAmountFor(cart.total);
+    final amountDue = cart.total - walletAmount;
 
     return Scaffold(
       drawer: const AppDrawer(),
@@ -261,51 +309,92 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             ),
                           ],
                           const SizedBox(height: 24),
-                          const Text(
-                            '¿Cómo quieres pagar?',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          RadioGroup<String>(
-                            groupValue: _paymentMethod,
-                            onChanged: (value) {
-                              if (value != null && !_isSubmitting) {
-                                setState(() => _paymentMethod = value);
-                              }
-                            },
-                            child: Column(
-                              children: [
-                                Card(
-                                  child: RadioListTile<String>(
-                                    value: 'cash',
-                                    title: Text(
-                                      _fulfillmentMethod == 'pickup'
-                                          ? 'Efectivo en caja al recoger'
-                                          : 'Efectivo al repartidor',
-                                    ),
-                                    secondary: const Icon(Icons.payments),
-                                    enabled: !_isSubmitting,
-                                  ),
+                          if (_isLoadingWallet)
+                            const LinearProgressIndicator()
+                          else if (_walletBalanceError != null)
+                            Text(
+                              'No se pudo consultar tu saldo de tienda: '
+                              '$_walletBalanceError',
+                              style: const TextStyle(color: Colors.red),
+                            )
+                          else if (_walletBalance > 0) ...[
+                            Card(
+                              child: CheckboxListTile(
+                                value: _applyStoreCredit,
+                                onChanged: _isSubmitting
+                                    ? null
+                                    : (value) => setState(
+                                        () =>
+                                            _applyStoreCredit = value ?? false,
+                                      ),
+                                title: Text(
+                                  'Usar saldo de tienda '
+                                  '(\$${_walletBalance.toStringAsFixed(2)} disponible)',
                                 ),
-                                Card(
-                                  child: RadioListTile<String>(
-                                    value: 'online',
-                                    title: const Text(
-                                      'Pagar ahora con tarjeta',
-                                    ),
-                                    subtitle: const Text(
-                                      'Crédito o débito en Mercado Pago',
-                                    ),
-                                    secondary: const Icon(Icons.credit_card),
-                                    enabled: !_isSubmitting,
-                                  ),
+                                subtitle: Text(
+                                  'Se aplicarán \$${_walletAmountFor(cart.total).toStringAsFixed(2)} '
+                                  'a este pedido. Puedes cubrir una parte o el total.',
                                 ),
-                              ],
+                                controlAffinity:
+                                    ListTileControlAffinity.leading,
+                              ),
                             ),
-                          ),
+                          ],
+                          if (amountDue > 0) ...[
+                            const SizedBox(height: 24),
+                            const Text(
+                              '¿Cómo quieres pagar?',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            RadioGroup<String>(
+                              groupValue: _paymentMethod,
+                              onChanged: (value) {
+                                if (value != null && !_isSubmitting) {
+                                  setState(() => _paymentMethod = value);
+                                }
+                              },
+                              child: Column(
+                                children: [
+                                  Card(
+                                    child: RadioListTile<String>(
+                                      value: 'cash',
+                                      title: Text(
+                                        _fulfillmentMethod == 'pickup'
+                                            ? 'Efectivo en caja al recoger'
+                                            : 'Efectivo al repartidor',
+                                      ),
+                                      secondary: const Icon(Icons.payments),
+                                      enabled: !_isSubmitting,
+                                    ),
+                                  ),
+                                  Card(
+                                    child: RadioListTile<String>(
+                                      value: 'online',
+                                      title: const Text(
+                                        'Pagar ahora con tarjeta',
+                                      ),
+                                      subtitle: const Text(
+                                        'Crédito o débito en Mercado Pago',
+                                      ),
+                                      secondary: const Icon(Icons.credit_card),
+                                      enabled: !_isSubmitting,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ] else ...[
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              child: Text(
+                                'Tu saldo de tienda cubre el pedido completo.',
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 24),
                           const Text(
                             'Productos',
@@ -340,6 +429,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
+                          if (walletAmount > 0)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                'Saldo aplicado: '
+                                '-\$${walletAmount.toStringAsFixed(2)} · '
+                                'Restante: \$${amountDue.toStringAsFixed(2)} MXN',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
                           if (_fulfillmentMethod == 'delivery')
                             const Padding(
                               padding: EdgeInsets.only(top: 4),
@@ -362,6 +463,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             label: Text(
                               _isSubmitting
                                   ? 'Preparando pedido...'
+                                  : amountDue <= 0
+                                  ? 'Confirmar pedido con saldo'
                                   : _paymentMethod == 'cash'
                                   ? 'Confirmar pedido'
                                   : 'Confirmar y pagar',

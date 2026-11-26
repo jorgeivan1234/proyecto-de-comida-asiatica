@@ -86,7 +86,7 @@ Deno.serve(async (request) => {
   const { data: order, error: orderError } = await serviceClient
     .from("orders")
     .select(
-      "id, user_id, status, payment_provider, total, expires_at, provider_order_id, provider_idempotency_key, checkout_url, order_items(product_name, quantity, unit_price)",
+      "id, user_id, status, payment_provider, total, wallet_amount, expires_at, provider_order_id, provider_idempotency_key, checkout_url, order_items(product_name, quantity, unit_price)",
     )
     .eq("id", orderId)
     .eq("user_id", user.id)
@@ -200,14 +200,26 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: "The order total is invalid." }, 409);
   }
 
+  const walletAmount = Number(order.wallet_amount ?? 0);
+  const paymentAmount = orderTotal - walletAmount;
+  if (!Number.isFinite(walletAmount) || paymentAmount <= 0) {
+    return jsonResponse({
+      error: "The remaining payment amount is invalid.",
+    }, 409);
+  }
+
   const orderBody = {
     type: "online",
     processing_mode: "manual",
     capture_mode: "automatic_async",
-    total_amount: orderTotal.toFixed(2),
+    total_amount: paymentAmount.toFixed(2),
     external_reference: String(order.id),
     payer: user.email ? { email: user.email } : undefined,
-    items,
+    items: [{
+      title: `Saldo pendiente del pedido #${order.id}`,
+      quantity: 1,
+      unit_price: paymentAmount.toFixed(2),
+    }],
     config: {
       payment_method: {
         not_allowed_types: ["ticket", "bank_transfer", "atm", "account_money"],
