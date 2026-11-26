@@ -1,5 +1,4 @@
-class Product{
-
+class Product {
   final int id;
   final String name;
   final String description;
@@ -7,18 +6,16 @@ class Product{
   final String category;
   final String image;
   final int stock;
+  final bool cancellationRecoverable;
 
-  Product(
-
-    { 
-    required this.id, 
-    required this.name, 
-    required this.description, 
-    required this.price, 
-    required this.category, 
-    required this.image, 
-    required this.stock
-
+  Product({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.price,
+    required this.category,
+    required this.image,
+    required this.stock,
+    this.cancellationRecoverable = false,
   });
 }
-

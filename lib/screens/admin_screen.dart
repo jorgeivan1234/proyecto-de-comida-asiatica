@@ -27,7 +27,10 @@ class _AdminScreenState extends State<AdminScreen> {
   Future<List<Product>> _loadProducts() async {
     final rows = await Supabase.instance.client
         .from('products')
-        .select('id, name, description, price, category, image, stock')
+        .select(
+          'id, name, description, price, category, image, stock, '
+          'cancellation_recoverable',
+        )
         .order('name');
 
     return rows.map<Product>((row) {
@@ -39,6 +42,8 @@ class _AdminScreenState extends State<AdminScreen> {
         category: row['category'] as String,
         image: row['image'] as String,
         stock: row['stock'] as int,
+        cancellationRecoverable:
+            row['cancellation_recoverable'] as bool? ?? false,
       );
     }).toList();
   }
@@ -73,10 +78,7 @@ class _AdminScreenState extends State<AdminScreen> {
       throw const FormatException('Faltan datos de venta en la respuesta.');
     }
 
-    return {
-      'total_sales': totalSales,
-      'average_ticket': averageTicket,
-    };
+    return {'total_sales': totalSales, 'average_ticket': averageTicket};
   }
 
   Widget _buildMetrics() {
@@ -123,7 +125,10 @@ class _AdminScreenState extends State<AdminScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Colors.deepOrange.shade400, Colors.deepOrange.shade600],
+                colors: [
+                  Colors.deepOrange.shade400,
+                  Colors.deepOrange.shade600,
+                ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -143,9 +148,19 @@ class _AdminScreenState extends State<AdminScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Ventas Totales', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                    const Text(
+                      'Ventas Totales',
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
                     const SizedBox(height: 4),
-                    Text('\$${totalSales.toStringAsFixed(2)} MXN', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                    Text(
+                      '\$${totalSales.toStringAsFixed(2)} MXN',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -175,9 +190,19 @@ class _AdminScreenState extends State<AdminScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Ticket Promedio (AOV)', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                    const Text(
+                      'Ticket Promedio (AOV)',
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
                     const SizedBox(height: 4),
-                    Text('\$${averageTicket.toStringAsFixed(2)} MXN', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                    Text(
+                      '\$${averageTicket.toStringAsFixed(2)} MXN',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -190,7 +215,9 @@ class _AdminScreenState extends State<AdminScreen> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               if (constraints.maxWidth < 600) {
-                return Column(children: [cards[0], const SizedBox(height: 12), cards[1]]);
+                return Column(
+                  children: [cards[0], const SizedBox(height: 12), cards[1]],
+                );
               }
               return Row(
                 children: [
@@ -221,7 +248,7 @@ class _AdminScreenState extends State<AdminScreen> {
         child: Column(
           children: [
             const AppNavigationBar(),
-            
+
             // Barra superior de navegación interna Admin (Catálogo / Pedidos y Envíos)
             Padding(
               padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
@@ -303,7 +330,9 @@ class _AdminScreenState extends State<AdminScreen> {
                       return Card(
                         elevation: 2,
                         margin: const EdgeInsets.symmetric(vertical: 6),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         child: ListTile(
                           contentPadding: const EdgeInsets.all(12),
                           leading: ClipRRect(
@@ -313,10 +342,16 @@ class _AdminScreenState extends State<AdminScreen> {
                               width: 56,
                               height: 56,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported, size: 40),
+                              errorBuilder: (_, __, ___) => const Icon(
+                                Icons.image_not_supported,
+                                size: 40,
+                              ),
                             ),
                           ),
-                          title: Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          title: Text(
+                            product.name,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                           subtitle: Text(
                             '${product.category} · \$${product.price.toStringAsFixed(2)} · Stock: ${product.stock}\n${product.description}',
                             maxLines: 2,
@@ -325,7 +360,10 @@ class _AdminScreenState extends State<AdminScreen> {
                           isThreeLine: true,
                           trailing: IconButton(
                             onPressed: () => _openProductForm(product: product),
-                            icon: const Icon(Icons.edit, color: Colors.deepOrange),
+                            icon: const Icon(
+                              Icons.edit,
+                              color: Colors.deepOrange,
+                            ),
                           ),
                         ),
                       );
@@ -360,17 +398,25 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
   late final TextEditingController _stockController;
 
   bool _isSaving = false;
+  late bool _cancellationRecoverable;
 
   @override
   void initState() {
     super.initState();
     final product = widget.product;
     _nameController = TextEditingController(text: product?.name ?? '');
-    _descripcionController = TextEditingController(text: product?.description ?? '');
-    _priceController = TextEditingController(text: product?.price.toString() ?? '');
+    _descripcionController = TextEditingController(
+      text: product?.description ?? '',
+    );
+    _priceController = TextEditingController(
+      text: product?.price.toString() ?? '',
+    );
     _categoryController = TextEditingController(text: product?.category ?? '');
     _imageController = TextEditingController(text: product?.image ?? '');
-    _stockController = TextEditingController(text: product?.stock.toString() ?? '');
+    _stockController = TextEditingController(
+      text: product?.stock.toString() ?? '',
+    );
+    _cancellationRecoverable = product?.cancellationRecoverable ?? false;
   }
 
   @override
@@ -419,6 +465,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
       'category': _categoryController.text.trim(),
       'image': _imageController.text.trim(),
       'stock': int.parse(_stockController.text.trim()),
+      'cancellation_recoverable': _cancellationRecoverable,
     };
 
     try {
@@ -438,9 +485,8 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
       );
     } on Exception catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ocurrió un error: $error')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Ocurrió un error: $error')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -474,7 +520,9 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                 TextFormField(
                   controller: _priceController,
                   decoration: const InputDecoration(labelText: 'Precio'),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   validator: _validPrice,
                 ),
                 TextFormField(
@@ -487,7 +535,9 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                 ),
                 TextFormField(
                   controller: _stockController,
-                  decoration: const InputDecoration(labelText: 'Existencia (Stock)'),
+                  decoration: const InputDecoration(
+                    labelText: 'Existencia (Stock)',
+                  ),
                   keyboardType: TextInputType.number,
                   validator: _validStock,
                 ),
@@ -495,6 +545,24 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                   controller: _categoryController,
                   decoration: const InputDecoration(labelText: 'Categoría'),
                   validator: _requiredText,
+                ),
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _cancellationRecoverable,
+                  onChanged: _isSaving
+                      ? null
+                      : (value) {
+                          if (value != null) {
+                            setState(() => _cancellationRecoverable = value);
+                          }
+                        },
+                  title: const Text('Producto recuperable'),
+                  subtitle: const Text(
+                    'Puede guardarse si el cliente cancela mientras se prepara. '
+                    'En pedidos mixtos, todos los productos deben ser recuperables.',
+                  ),
+                  controlAffinity: ListTileControlAffinity.leading,
                 ),
               ],
             ),

@@ -61,6 +61,7 @@ class CartProvider extends ChangeNotifier {
     required String fulfillmentMethod,
     required String? deliveryAddress,
     required String paymentMethod,
+    required double walletAmount,
   }) async {
     if (_items.isEmpty) return null;
 
@@ -91,6 +92,7 @@ class CartProvider extends ChangeNotifier {
           'p_fulfillment_method': fulfillmentMethod,
           'p_delivery_address': deliveryAddress,
           'p_payment_method': paymentMethod,
+          'p_wallet_amount': walletAmount,
         },
       );
 
@@ -121,10 +123,13 @@ class CartProvider extends ChangeNotifier {
         status: orderData['status'] as String,
         paymentStatus: orderData['payment_status'] as String,
         items: orderItems,
+        paymentMethod: orderData['payment_method'] as String?,
+        paymentProvider: orderData['payment_provider'] as String?,
         expiresAt: DateTime.parse(orderData['expires_at'] as String),
         reservationExpiresAt: DateTime.parse(
           orderData['reservation_expires_at'] as String,
         ),
+        walletAmount: (orderData['wallet_amount'] as num? ?? 0).toDouble(),
       );
 
       _orders.insert(0, order);
@@ -165,6 +170,35 @@ class CartProvider extends ChangeNotifier {
     return uri;
   }
 
+  Future<double> loadWalletBalance() async {
+    final response = await Supabase.instance.client.rpc(
+      'get_my_wallet_balance',
+    );
+    if (response is! num) {
+      throw const FormatException('El saldo de tienda no es válido.');
+    }
+    return response.toDouble();
+  }
+
+  Future<Map<String, dynamic>> cancelOrder({
+    required int orderId,
+    required String refundDestination,
+  }) async {
+    final response = await Supabase.instance.client.functions.invoke(
+      'cancel-order',
+      body: {'order_id': orderId, 'refund_destination': refundDestination},
+    );
+
+    if (response.data is! Map) {
+      throw const FormatException(
+        'El servidor no devolvió el resultado de la cancelación.',
+      );
+    }
+
+    await loadOrders();
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
   Future<void> loadOrders() async {
     final client = Supabase.instance.client;
     if (client.auth.currentUser == null) {
@@ -179,8 +213,10 @@ class CartProvider extends ChangeNotifier {
           'id, created_at, status, payment_status, expires_at, '
           'reservation_expires_at, checkout_url, '
           'payment_ticket_url, payment_method, fulfillment_method, '
+          'payment_provider, refund_destination, wallet_amount, '
           'delivery_address, fulfillment_status, '
-          'order_items(product_name, quantity, unit_price)',
+          'order_items(product_name, quantity, unit_price, '
+          'cancellation_recoverable)',
         )
         .order('created_at', ascending: false);
 
@@ -193,6 +229,8 @@ class CartProvider extends ChangeNotifier {
           productName: item['product_name'] as String,
           quantity: item['quantity'] as int,
           unitPrice: (item['unit_price'] as num).toDouble(),
+          cancellationRecoverable:
+              item['cancellation_recoverable'] as bool? ?? false,
         );
       }).toList();
 
@@ -209,6 +247,9 @@ class CartProvider extends ChangeNotifier {
         checkoutUrl: row['checkout_url'] as String?,
         paymentTicketUrl: row['payment_ticket_url'] as String?,
         paymentMethod: row['payment_method'] as String?,
+        paymentProvider: row['payment_provider'] as String?,
+        refundDestination: row['refund_destination'] as String?,
+        walletAmount: (row['wallet_amount'] as num? ?? 0).toDouble(),
         fulfillmentMethod: row['fulfillment_method'] as String?,
         deliveryAddress: row['delivery_address'] as String?,
         fulfillmentStatus: row['fulfillment_status'] as String?,

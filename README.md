@@ -3,6 +3,25 @@
 Aplicación Flutter conectada a Supabase. El catálogo consulta el stock disponible;
 los pedidos pendientes reservan existencias sin modificar el stock físico.
 
+## Configurar la conexión de Flutter con Supabase
+
+Antes de ejecutar la app, configura `SUPABASE_URL` y
+`SUPABASE_PUBLISHABLE_KEY` en el entorno desde el que se inicia VS Code. Los
+perfiles de `.vscode/launch.json` pasan esos valores como `--dart-define`.
+Reinicia VS Code después de cambiar las variables de entorno. Para ejecutar
+desde PowerShell, puedes pasarlas directamente:
+
+```powershell
+flutter run --dart-define="SUPABASE_URL=https://tu-proyecto.supabase.co" --dart-define="SUPABASE_PUBLISHABLE_KEY=sb_publishable_tu_clave"
+```
+
+Usa la URL y la clave publicable del mismo proyecto que contiene las cuentas
+en **Supabase Dashboard > Project Settings > API Keys**. No uses la clave
+`service_role` en Flutter. Si el inicio de sesión responde `Invalid login
+credentials`, comprueba en **Authentication > Users** que el correo exista en
+ese proyecto y que la contraseña sea la de esa cuenta; si hace falta, restablece
+la contraseña desde Supabase. No compartas contraseñas ni claves privadas.
+
 ## Preparar la base de datos
 
 La migración inicial `20261112000000_place_order_and_decrement_stock.sql` ya se
@@ -92,3 +111,26 @@ repartidor) o pagar en línea con Mercado Pago. El efectivo queda pendiente hast
 que un administrador confirme en el panel que recibió el dinero. Esa
 confirmación descuenta el stock reservado; los pagos en línea siguen
 confirmándose por el webhook de Mercado Pago.
+
+## Cancelaciones y saldo de tienda
+
+Después de aplicar las migraciones anteriores, incluida
+`supabase/migrations/20261121000000_mercadopago_orders_api.sql`, ejecuta
+`supabase/migrations/20261126000000_order_cancellation_and_store_credit.sql`
+en Supabase SQL Editor y despliega la función `cancel-order` en el mismo
+proyecto. La cancelación queda disponible antes de empezar cocina; durante la
+preparación solo se permite si todos los productos del pedido están marcados
+como recuperables desde el panel de administración. Al estar listo para recoger,
+recogido o en camino, no se puede cancelar.
+
+Despliega la función desde la raíz del repositorio con
+`supabase functions deploy cancel-order`.
+
+Para un pago aprobado de Mercado Pago, el cliente elige pedir el reembolso al
+medio original o recibir saldo de tienda. El saldo se puede aplicar parcial o
+totalmente a una compra futura; no permite retiros ni transferencias. El saldo
+usado en una orden pendiente se devuelve automáticamente si esa orden vence o
+se cancela antes de pagarse. Los reembolsos de efectivo cobrado se gestionan
+manualmente y se registran desde el panel administrativo. La función usa el
+secreto `MP_ACCESS_TOKEN` ya configurado para Mercado Pago; nunca lo agregues a
+Flutter.

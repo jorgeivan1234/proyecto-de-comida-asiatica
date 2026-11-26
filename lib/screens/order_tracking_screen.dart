@@ -75,9 +75,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (_order == null) {
@@ -89,7 +87,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
     final status = _order!['fulfillment_status'] as String? ?? 'pending';
     final driverName = _order!['driver_name'] as String? ?? 'Repartidor';
-    final deliveryMethod = _order!['fulfillment_method'] as String? ?? 'delivery';
+    final deliveryMethod =
+        _order!['fulfillment_method'] as String? ?? 'delivery';
 
     return Scaffold(
       appBar: AppBar(
@@ -103,7 +102,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           // Tarjeta de Estado Actual
           Card(
             elevation: 4,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -112,15 +113,22 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   Row(
                     children: [
                       Icon(
-                        deliveryMethod == 'pickup' ? Icons.storefront : Icons.delivery_dining,
+                        deliveryMethod == 'pickup'
+                            ? Icons.storefront
+                            : Icons.delivery_dining,
                         color: Colors.deepOrange,
                         size: 32,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          deliveryMethod == 'pickup' ? 'Modalidad: Recoger en local' : 'Entrega a domicilio',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          deliveryMethod == 'pickup'
+                              ? 'Modalidad: Recoger en local'
+                              : 'Entrega a domicilio',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
@@ -128,7 +136,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   const Divider(height: 24),
                   Text(
                     'Estado actual: ${_getStatusTitle(status)}',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.deepOrange),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.deepOrange,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -142,7 +154,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           const SizedBox(height: 20),
 
           // Línea de tiempo visual
-          const Text('Progreso del pedido', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text(
+            'Progreso del pedido',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 12),
           _buildTimelineTile(
             title: 'Pedido Recibido',
@@ -152,8 +167,13 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           ),
           _buildTimelineTile(
             title: 'En Preparación',
-            subtitle: 'Nuestros chefs están preparando tus platillos asiáticos.',
-            isCompleted: status == 'preparing' || status == 'ready_for_pickup' || status == 'shipped' || status == 'delivered',
+            subtitle:
+                'Nuestros chefs están preparando tus platillos asiáticos.',
+            isCompleted:
+                status == 'preparing' ||
+                status == 'ready_for_pickup' ||
+                status == 'shipped' ||
+                status == 'delivered',
             isCurrent: status == 'preparing',
           ),
           if (deliveryMethod == 'delivery') ...[
@@ -174,7 +194,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             _buildTimelineTile(
               title: 'Listo para recoger',
               subtitle: 'Pasa por tu paquete al local.',
-              isCompleted: status == 'ready_for_pickup' || status == 'picked_up',
+              isCompleted:
+                  status == 'ready_for_pickup' || status == 'picked_up',
               isCurrent: status == 'ready_for_pickup',
             ),
             _buildTimelineTile(
@@ -202,8 +223,14 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                   children: [
                     Icon(Icons.map, size: 48, color: Colors.deepOrange),
                     SizedBox(height: 8),
-                    Text('Repartidor en ruta GPS en tiempo real', style: TextStyle(fontWeight: FontWeight.bold)),
-                    Text('Lat: 19.4326, Lon: -99.1332 (Simulado)', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    Text(
+                      'Ubicación de demostración',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      'La ubicación GPS real no está disponible.',
+                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
                   ],
                 ),
               ),
@@ -216,25 +243,43 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
   String _getStatusTitle(String status) {
     switch (status) {
-      case 'pending': return 'Pendiente';
-      case 'preparing': return 'En preparación';
-      case 'ready_for_pickup': return 'Listo para recoger';
-      case 'shipped': return 'En camino';
-      case 'delivered': return 'Entregado';
-      case 'picked_up': return 'Recogido';
-      default: return status;
+      case 'pending':
+        return 'Pendiente';
+      case 'preparing':
+        return 'En preparación';
+      case 'cancelled':
+        return 'Cancelado';
+      case 'ready_for_pickup':
+        return 'Listo para recoger';
+      case 'shipped':
+        return 'En camino';
+      case 'delivered':
+        return 'Entregado';
+      case 'picked_up':
+        return 'Recogido';
+      default:
+        return status;
     }
   }
 
   String _getStatusDescription(String status, String method) {
+    if (status == 'cancelled') return 'Este pedido fue cancelado.';
     if (status == 'pending') return 'Esperando confirmación y pago.';
-    if (status == 'preparing') return 'La cocina está elaborando tus platillos.';
+    if (status == 'preparing')
+      return 'La cocina está elaborando tus platillos.';
     if (status == 'shipped') return 'Tu repartidor va rumbo a tu domicilio.';
-    if (status == 'ready_for_pickup') return 'Tu pedido está listo en el mostrador.';
+    if (status == 'ready_for_pickup')
+      return 'Tu pedido está listo en el mostrador.';
     return 'Pedido completado con éxito.';
   }
 
-  Widget _buildTimelineTile({required String title, required String subtitle, required bool isCompleted, required bool isCurrent, bool isLast = false}) {
+  Widget _buildTimelineTile({
+    required String title,
+    required String subtitle,
+    required bool isCompleted,
+    required bool isCurrent,
+    bool isLast = false,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -266,9 +311,19 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isCurrent ? Colors.deepOrange : Colors.black87)),
+              Text(
+                title,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: isCurrent ? Colors.deepOrange : Colors.black87,
+                ),
+              ),
               const SizedBox(height: 2),
-              Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+              Text(
+                subtitle,
+                style: const TextStyle(color: Colors.grey, fontSize: 13),
+              ),
               const SizedBox(height: 20),
             ],
           ),

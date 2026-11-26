@@ -248,7 +248,7 @@ Deno.serve(async (request) => {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
-          "X-Idempotency-Key": `refund-${dataId}-${paymentId}`,
+          "X-Idempotency-Key": `refund-${dataId}`,
         },
         body: JSON.stringify({}),
       },
